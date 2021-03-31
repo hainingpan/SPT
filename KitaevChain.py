@@ -59,7 +59,7 @@ class Params:
         mask=mask_hh+mask_hp+mask_ph+mask_pp
         return self.C[mask].reshape((2*subregion.shape[0],2*subregion.shape[0]))
 
-    def shannon_entropy(self,subregion):
+    def von_Neumann_entropy(self,subregion):
         c_A=self.c_subregion(subregion)
         val,vec=la.eigh(c_A)
         self.val_sh=val
@@ -67,9 +67,9 @@ class Params:
         return np.real(-np.sum(val*np.log(val+1e-18j))-np.sum((1-val)*np.log(1-val+1e-18j)))
 
     def mutual_information(self,subregion_A,subregion_B):
-        s_A=self.shannon_entropy(subregion_A)
-        s_B=self.shannon_entropy(subregion_B)
+        s_A=self.von_Neumann_entropy(subregion_A)
+        s_B=self.von_Neumann_entropy(subregion_B)
         subregion_AB=np.hstack([subregion_A,subregion_B])
-        s_AB=self.shannon_entropy(subregion_AB)
+        s_AB=self.von_Neumann_entropy(subregion_AB)
         return s_A+s_B-s_AB
     
