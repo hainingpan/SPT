@@ -13,19 +13,20 @@ class Params:
     Delta=1,
     L=100,
     T=0,
-    pbc=True):
+    bc=1    # 0: open boundary condition; >0: PBC; <0: APBC
+    ):
         self.mu=mu
         self.t=t
         self.Delta=Delta
         self.L=L
         self.tau_z=sp.dia_matrix(np.diag([1,-1]))
         self.tau_y=sp.dia_matrix(np.array([[0,-1j],[1j,0]]))
-        self.pbc=pbc
+        self.bc=bc
         self.T=T
         self.band1sm=sp.diags([1],[1],(L,L)).tocsr()
         self.bandm1sm=sp.diags([1],[-1],(L,L)).tocsr()
-        self.band1sm[-1,0]=1*(pbc)
-        self.bandm1sm[0,-1]=1*(pbc)
+        self.band1sm[-1,0]=1*(2*np.heaviside(bc,1/2)-1)
+        self.bandm1sm[0,-1]=1*(2*np.heaviside(bc,1/2)-1)
         self.Hamiltonian=-self.mu*sp.kron(self.tau_z,sp.identity(self.L))-sp.kron(self.t*self.tau_z+1j*self.Delta*self.tau_y,self.band1sm)-sp.kron(self.t*self.tau_z-1j*self.Delta*self.tau_y,self.bandm1sm)
     
     def bandstructure(self):        
