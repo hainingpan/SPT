@@ -52,6 +52,10 @@ class Params:
     def c_subregion(self,subregion):
         if not hasattr(self,'C'):
             self.covariance_matrix()
+        try:
+            subregion=np.array(subregion)
+        except:
+            raise ValueError("The subregion is ill-defined"+subregion)
         XX,YY=np.meshgrid(np.arange(2*self.L),np.arange(2*self.L))
         mask_hh=np.isin(XX,subregion)*np.isin(YY,subregion)
         mask_hp=np.isin(XX,subregion)*np.isin(YY,subregion+self.L)
