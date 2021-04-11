@@ -4,7 +4,6 @@ import scipy.sparse.linalg as sla
 import scipy.linalg as la
 import numpy.matlib
 
-
 class Params:
     '''
     example: params=Params(mu=2)
@@ -175,9 +174,9 @@ class Params:
         c_A=self.c_subregion_m(subregion)
         val,vec=la.eigh(1j*c_A)
         self.val_sh=val
-        val=np.sort(val)[:subregion.shape[0]]
+        val=np.sort(val)
         val=(1-val)/2   #\lambda=(1-\xi)/2
-        return np.real(-np.sum(val*np.log(val+1e-18j))-np.sum((1-val)*np.log(1-val+1e-18j)))
+        return np.real(-np.sum(val*np.log(val+1e-18j))-np.sum((1-val)*np.log(1-val+1e-18j)))/2
 
     def mutual_information(self,subregion_A,subregion_B):
         s_A=self.von_Neumann_entropy(subregion_A)
@@ -193,14 +192,53 @@ class Params:
         s_AB=self.von_Neumann_entropy_m(subregion_AB)
         return s_A+s_B-s_AB
 
-    def measure_batch(self,batchsize):
+    def measure_batch(self,batchsize,proj_range):
         self.i_history=[]
         self.s_history=[]
         for _ in range(batchsize):
-            i=np.random.randint(2,29)
+            i=np.random.randint(*proj_range)
             s=np.random.randint(0,2)
             self.i_history.append(i)
             self.s_history.append(s)
             self.measure(s,i,i+1)
-    
+
+    def measure_all(self,s):
+        self.i_history=[]
+        self.s_history=[]
+        # proj_range=np.hstack([np.arange(int(self.L/2),self.L,2),np.arange(int(self.L/2),self.L,2)+self.L])
+        proj_range=np.hstack([np.arange(int(self.L/2),self.L,2)]) 
+        # proj_range=np.hstack([np.arange(int(self.L/2),self.L)])
+        # proj_range=np.hstack([np.arange(int(self.L/2),self.L),np.arange(int(self.L/2),int(self.L/2)+2)+self.L])
+        for i in proj_range:
+            self.i_history.append(i)
+            self.s_history.append(s)
+            self.measure(s,i,i+1)
+
+    def measure_all_random(self,batchsize,proj_range):
+        self.i_history=[]
+        self.s_history=[]        
+        # if batchsize>proj_range.shape[0]:
+        #     raise ValueError("The batchsize {} cannot be larger than the proj_range {}".format(batchsize,proj_range.shape[0]))
+        choice=np.random.choice(range(*proj_range),batchsize,replace=False)
+        for i in choice:
+            s=np.random.randint(0,2)
+            self.i_history.append(i)  
+            self.s_history.append(s)
+            self.measure(s,i,i+1)      
+
+
+    def measure_all_random_even(self,batchsize,proj_range):
+        self.i_history=[]
+        self.s_history=[]        
+        # if batchsize>proj_range.shape[0]:
+        #     raise ValueError("The batchsize {} cannot be larger than the proj_range {}".format(batchsize,proj_range.shape[0]))
+        # choice=np.random.choice(range(*proj_range),batchsize,replace=False)
+        proj_range_even=[i//2 for i in proj_range]
+        choice=np.random.choice(range(*proj_range_even),batchsize,replace=False)
+        for i in choice:
+            s=np.random.randint(0,2)
+            self.i_history.append(2*i)  #only even is accepted 
+            self.s_history.append(s)
+            self.measure(s,2*i,2*i+1)  
+        
     
