@@ -1,0 +1,9 @@
+1. how to construct the reduced density matrix from single particle wf?
+2. if not possible, how to evaluate the covariance matrix, i.e, <>?
+3. why don't we just solve E_i, and xi_i, then S_A, but in this way, it seems no info of subregion B is involved here.
+
+4.  d-wave superconductor in real space,
+5. S_A, in Borchmann, why not good?
+
+
+1. If there is other internal degree of freedom in the system, for example, spin dof. For the covariance matrix, do we trace the internal dof out or write it like [<c_{i}^dagger>]
