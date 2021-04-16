@@ -372,8 +372,9 @@ if __name__=="__main__":
     
     for i in (0,12,13,14,15,16):
         print(i)
+        st=time.time()
         delta_dict[i],mutual_info_dis_dict[i]=mutual_info_run(i,args.es)
-    print(time.time()-st)
+        print(time.time()-st)
 
     fig,ax=plt.subplots()
     for i in (0,12,14,15,16):
@@ -383,4 +384,4 @@ if __name__=="__main__":
     ax.set_xlabel(r'$\delta$')
     ax.set_ylabel(r'Mutual information between A and B [$\log2$]')
 
-    fig.savefig('mutual_info_Ap_En1000.pdf',bbox_inches='tight')
+    fig.savefig('mutual_info_Ap_En{:d}.pdf'.format(args.es),bbox_inches='tight')
