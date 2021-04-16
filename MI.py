@@ -10,6 +10,7 @@ import scipy.sparse.linalg as sla
 import scipy.linalg as la
 import numpy.matlib
 import argparse
+import pickle
 
 class Params:
     '''
@@ -376,6 +377,9 @@ if __name__=="__main__":
         delta_dict[i],mutual_info_dis_dict[i]=mutual_info_run(i,args.es)
         print(time.time()-st)
 
+    with open('mutual_info_Ap_En{:d}.pickle'.format(args.es),'wb') as f:
+        pickle.dump([delta_dict,mutual_info_dis_dict],f)
+    
     fig,ax=plt.subplots()
     for i in (0,12,14,15,16):
         ax.plot(delta_dict[i],np.array(mutual_info_dis_dict[i]).mean(axis=1)/np.log(2),label='Number of gates: {}'.format(i))
