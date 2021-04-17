@@ -442,7 +442,7 @@ class Params:
         
 
 def mutual_info_run(batchsize,es=100):
-    delta_list=np.linspace(-1,1,20)**3
+    delta_list=np.linspace(-1,1,100)**3
     mutual_info_dis_list=[]
     if batchsize==0:
         ensemblesize=1
@@ -465,7 +465,7 @@ def MI_pool(delta,batchsize):
     
 
 def mutual_info_run_pool(batchsize,es=100):
-    delta_list=np.linspace(-1,1,20)**3
+    delta_list=np.linspace(-1,1,100)**3
     mutual_info_dis_list=[]
     if batchsize==0:
         ensemblesize=1
@@ -486,7 +486,7 @@ def mutual_info_run_pool(batchsize,es=100):
     return delta_list,mutual_info_dis_list
 
 def mutual_info_run_MPI(batchsize,es=100):
-    delta_list=np.linspace(-1,1,20)**3
+    delta_list=np.linspace(-1,1,100)**3
     mutual_info_dis_list=[]
     if batchsize==0:
         ensemblesize=1
@@ -514,7 +514,7 @@ if __name__=="__main__":
 
     delta_dict={}
     mutual_info_dis_dict={}
-    density_list=(16,)
+    density_list=(0,12,14,16)
     
     for i in density_list:
         print(i)
