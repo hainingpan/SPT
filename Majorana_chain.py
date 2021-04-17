@@ -12,6 +12,40 @@ class Params:
     delta=0,    
     L=100,
     T=0,
+    bc=1,    # 0: open boundary condition; >0: PBC; <0: APBC
+    basis='mf'    # 'generate Hamiltonian of fermionic ('f') and Majorana basis ('m') or both ('mf')
+    ):
+        self.delta=delta
+        self.mu=2*(1-delta)
+        self.t=-(1+delta)
+        self.Delta=-(1+delta)
+        self.L=L
+        self.tau_z=np.array([[1,0],[0,-1]])
+        self.tau_y=np.array([[0,-1j],[1j,0]])
+        self.bc=bc
+        self.T=T
+        if 'f' in basis:
+            band1sm=np.diag(np.ones(L-1),1)
+            band1sm[-1,0]=1*(2*np.heaviside(bc,1/2)-1)
+            id_mat=np.eye(L)
+            # Hamiltonian in the ferimion basis
+            self.Hamiltonian_f=np.block([[-self.mu*id_mat-self.t*(band1sm+band1sm.T),-self.Delta*(band1sm-band1sm.T)],
+                                        [self.Delta*(band1sm-band1sm.T),self.mu*id_mat+self.t*(band1sm+band1sm.T)]])
+            # BdG Hamiltonian back to original        
+            self.Hamiltonian_f/=2
+
+        if 'm' in basis:    
+            # Hamiltonian in the Majorana basis
+            band=np.vstack([np.ones(L)*(1-delta)*1j,np.ones(L)*(1+delta)*1j]).flatten('F')
+            Ham=np.diag(band[:-1],-1)
+            Ham[0,-1]=(1+delta)*1j*bc
+            Ham=Ham+Ham.conj().T
+            self.Hamiltonian_m=Ham
+
+    def __init_obs__(self,
+    delta=0,    
+    L=100,
+    T=0,
     bc=1    # 0: open boundary condition; >0: PBC; <0: APBC
     ):
         self.delta=delta
@@ -39,24 +73,31 @@ class Params:
         Ham[-1,0]=-(1+delta)*1j*bc
         self.Hamiltonian_m=Ham
 
-        
-
-
-    def bandstructure(self,H_type='f'):    
+    def bandstructure_obs(self,H_type='f'):    
         if H_type=='f':    
-            val,vec=la.eigh(self.Hamiltonian_f.toarray())
+            val,vec=la.eigh(self.Hamiltonian_f)
             sortindex=np.argsort(val)
             self.val_f=val[sortindex]
             self.vec_f=vec[:,sortindex]
         elif H_type=='m':
-            val,vec=la.eigh(self.Hamiltonian_m.toarray()) 
+            val,vec=la.eigh(self.Hamiltonian_m) 
             sortindex=np.argsort(val)
             self.val_m=val[sortindex]
             self.vec_m=vec[:,sortindex]
         else:
             raise ValueError('type of Hamiltonian ({}) not found'.format(H_type))
 
-
+    def bandstructure(self,basis='mf'):
+        if 'f' in basis:    
+            val,vec=la.eigh(self.Hamiltonian_f)
+            sortindex=np.argsort(val)
+            self.val_f=val[sortindex]
+            self.vec_f=vec[:,sortindex]
+        if 'm' in basis:
+            val,vec=np.linalg.eigh(self.Hamiltonian_m) 
+            sortindex=np.argsort(val)
+            self.val_m=val[sortindex]
+            self.vec_m=vec[:,sortindex]       
 
     def fermi_dist(self,energy,E_F):      
         if self.T==0:
@@ -82,7 +123,7 @@ class Params:
         self.C_m=np.real(self.C_m)
         self.C_m_history=[self.C_m]
     
-    def projection(self,s):
+    def projection_obs(self,s):
         '''
         s= 0,1 occupancy number
         i,j: adjacent pair of Majorana
@@ -94,7 +135,21 @@ class Params:
         blkmat=(np.array([[0,-(-1)**s],[(-1)**s,0]]))
         return sp.bmat([[blkmat,None],[None,blkmat.T]]).toarray()
 
-    def measure(self,s,i,j):
+    def projection(self,s):
+        '''
+        occupancy number: s= 0,1 
+        (-1)^0 even parity, (-1)^1 odd parity
+
+        '''
+        assert (s==0 or s==1),"s={} is either 0 or 1".format(s)
+        blkmat=np.array([[0,-(-1)**s,0,0],
+                        [(-1)**s,0,0,0],
+                        [0,0,0,(-1)**s],
+                        [0,0,-(-1)**s,0]])
+        return blkmat
+
+    # Slower than measure() 8.3x times 
+    def measure_obs(self,s,i,j):
         permutation_mat=sp.diags([1],[0],(self.L*2,self.L*2)).tocsr()
         # i <-> -2
         permutation_mat[i,i]=0
@@ -108,7 +163,13 @@ class Params:
         permutation_mat[-1,j]=1
         if not hasattr(self,'C_m'):
             self.covariance_matrix_m()
+
+        # m=np.arange(64).reshape((8,8))
+        # C_m_perm=permutation_mat.T@m@permutation_mat.T
+
         C_m_perm=permutation_mat.T@self.C_m_history[-1]@permutation_mat.T
+
+        self.m=C_m_perm
         Gamma_LL=C_m_perm[:-2,:-2]
         Gamma_LR=C_m_perm[:-2,-2:]
         Gamma_RR=C_m_perm[-2:,-2:]
@@ -131,10 +192,100 @@ class Params:
         Psi=permutation_mat.T@Psi@permutation_mat
         
         
+        self.C_m_history.append(Psi)
+
+    # Slower than measure() 1.7x times 
+    def measure_roll(self,s,i,j):
+        if not hasattr(self,'C_m'):
+            self.covariance_matrix_m()
+        
+        # m=np.arange(64).reshape((8,8))
+        
+        m=self.C_m_history[-1].copy()
+        m[i:,:]=np.roll(m[i:,:],-1,0)
+        m[:,i:]=np.roll(m[:,i:],-1,1)
+
+        if j>i:
+            j-=1    #the position of j is rotated by 1 ahead
+        m[j:,:]=np.roll(m[j:,:],-1,0)
+        m[:,j:]=np.roll(m[:,j:],-1,1)
+        self.m=m
+
+        Gamma_LL=m[:-2,:-2]
+        Gamma_LR=m[:-2,-2:]
+        Gamma_RR=m[-2:,-2:]       
+
+        proj=self.projection(s)
+        Upsilon_LL=proj[:-2,:-2]
+        Upsilon_LR=proj[:-2,-2:]
+        Upsilon_RR=proj[-2:,-2:]
+        Upsilon_RL=proj[-2:,:-2]
+        zero=np.zeros((self.L*2-2,2))
+        zero0=np.zeros((2,2))
+        mat1=np.block([[Gamma_LL,zero],[zero.T,Upsilon_RR]])
+        mat2=np.block([[Gamma_LR,zero],[zero0,Upsilon_RL]])
+        mat3=np.block([[Gamma_RR,np.eye(2)],[-np.eye(2),Upsilon_LL]])
+        self.mat2=mat2
+        if np.count_nonzero(mat2):
+            Psi=mat1+mat2@(la.solve(mat3,mat2.T))
+        else:
+            Psi=mat1
+        
+        Psi[j:,:]=np.roll(Psi[j:,:],1,0)
+        Psi[:,j:]=np.roll(Psi[:,j:],1,1)
+
+        Psi[i:,:]=np.roll(Psi[i:,:],1,0)
+        Psi[:,i:]=np.roll(Psi[:,i:],1,1)
+        # Psi=permutation_mat.T@Psi@permutation_mat        
+        
+        self.C_m_history.append(Psi) 
+
+    def measure(self,s,i,j):
+        if not hasattr(self,'C_m'):
+            self.covariance_matrix_m()
+        
+        # m=np.arange(64).reshape((8,8))
+        
+        m=self.C_m_history[-1].copy()
+        # i<-> -2
+        m[[i,-2]]=m[[-2,i]]
+        m[:,[i,-2]]=m[:,[-2,i]]
+        # j<->-1
+        m[[j,-1]]=m[[-1,j]]
+        m[:,[j,-1]]=m[:,[-1,j]]
+
+        self.m=m
+
+        Gamma_LL=m[:-2,:-2]
+        Gamma_LR=m[:-2,-2:]
+        Gamma_RR=m[-2:,-2:]       
+
+        proj=self.projection(s)
+        Upsilon_LL=proj[:-2,:-2]
+        Upsilon_LR=proj[:-2,-2:]
+        Upsilon_RR=proj[-2:,-2:]
+        Upsilon_RL=proj[-2:,:-2]
+        zero=np.zeros((self.L*2-2,2))
+        zero0=np.zeros((2,2))
+        mat1=np.block([[Gamma_LL,zero],[zero.T,Upsilon_RR]])
+        mat2=np.block([[Gamma_LR,zero],[zero0,Upsilon_RL]])
+        mat3=np.block([[Gamma_RR,np.eye(2)],[-np.eye(2),Upsilon_LL]])
+        self.mat2=mat2
+        if np.count_nonzero(mat2):
+            Psi=mat1+mat2@(la.solve(mat3,mat2.T))
+        else:
+            Psi=mat1
+        
+        Psi[[j,-1]]=Psi[[-1,j]]
+        Psi[:,[j,-1]]=Psi[:,[-1,j]]
+
+        Psi[[i,-2]]=Psi[[-2,i]]
+        Psi[:,[i,-2]]=Psi[:,[-2,i]]
+        
         self.C_m_history.append(Psi) 
 
 
-    def c_subregion_f(self,subregion):
+    def c_subregion_f_obs(self,subregion):
         if not hasattr(self,'C'):
             self.covariance_matrix_f()
         try:
@@ -149,6 +300,16 @@ class Params:
         mask=mask_hh+mask_hp+mask_ph+mask_pp
         return self.C_f[mask].reshape((2*subregion.shape[0],2*subregion.shape[0]))
 
+    def c_subregion_f(self,subregion):
+        if not hasattr(self,'C'):
+            self.covariance_matrix_f()
+        try:
+            subregion=np.array(subregion)
+        except:
+            raise ValueError("The subregion is ill-defined"+subregion)
+        subregion_ph=np.concatenate([subregion,subregion+self.L])
+        return self.C_f[np.ix_(subregion_ph,subregion_ph)]
+
     def von_Neumann_entropy(self,subregion):
         c_A=self.c_subregion(subregion)
         val,vec=la.eigh(c_A)
@@ -156,7 +317,7 @@ class Params:
         val=np.sort(val)[:subregion.shape[0]]
         return np.real(-np.sum(val*np.log(val+1e-18j))-np.sum((1-val)*np.log(1-val+1e-18j)))
 
-    def c_subregion_m(self,subregion,Gamma=None):
+    def c_subregion_m_obs(self,subregion,Gamma=None):
         if not hasattr(self,'C_m'):
             self.covariance_matrix_m()
 
@@ -167,11 +328,25 @@ class Params:
         except:
             raise ValueError("The subregion is ill-defined"+subregion)
         XX,YY=np.meshgrid(np.arange(2*self.L),np.arange(2*self.L))
-        mask=np.isin(XX,subregion)*np.isin(YY,subregion)        
+        mask=np.isin(XX,subregion)*np.isin(YY,subregion)  
         return Gamma[mask].reshape((subregion.shape[0],subregion.shape[0]))
 
+    def c_subregion_m(self,subregion,Gamma=None):
+        if not hasattr(self,'C_m'):
+            self.covariance_matrix_m()
+        if Gamma==None:
+            Gamma=self.C_m_history[-1]
+        try:
+            subregion=np.array(subregion)
+        except:
+            raise ValueError("The subregion is ill-defined"+subregion)
+        return Gamma[np.ix_(subregion,subregion)]
+        
+
+
     def von_Neumann_entropy_m(self,subregion):
-        c_A=self.c_subregion_m(subregion)
+        # c_A=self.c_subregion_m(subregion)
+        c_A=self.c_subregion_m_obs(subregion)
         val,vec=la.eigh(1j*c_A)
         self.val_sh=val
         val=np.sort(val)
@@ -181,14 +356,16 @@ class Params:
     def mutual_information(self,subregion_A,subregion_B):
         s_A=self.von_Neumann_entropy(subregion_A)
         s_B=self.von_Neumann_entropy(subregion_B)
-        subregion_AB=np.hstack([subregion_A,subregion_B])
+        assert np.intersect1d(subregion_A,subregion_B).size==0 , "Subregion A and B overlap"
+        subregion_AB=np.concatenate([subregion_A,subregion_B])
         s_AB=self.von_Neumann_entropy(subregion_AB)
         return s_A+s_B-s_AB
 
     def mutual_information_m(self,subregion_A,subregion_B):
         s_A=self.von_Neumann_entropy_m(subregion_A)
         s_B=self.von_Neumann_entropy_m(subregion_B)
-        subregion_AB=np.hstack([subregion_A,subregion_B])
+        assert np.intersect1d(subregion_A,subregion_B).size==0 , "Subregion A and B overlap"
+        subregion_AB=np.concatenate([subregion_A,subregion_B])
         s_AB=self.von_Neumann_entropy_m(subregion_AB)
         return s_A+s_B-s_AB
 
@@ -202,7 +379,11 @@ class Params:
             self.s_history.append(s)
             self.measure(s,i,i+1)
 
-    def measure_all(self,s):
+    def measure_all(self,s_prob):
+        '''
+        The probability of s=0 (unoccupied)
+
+        '''
         self.i_history=[]
         self.s_history=[]
         # proj_range=np.hstack([np.arange(int(self.L/2),self.L,2),np.arange(int(self.L/2),self.L,2)+self.L])
@@ -211,6 +392,12 @@ class Params:
         # proj_range=np.hstack([np.arange(int(self.L/2),self.L),np.arange(int(self.L/2),int(self.L/2)+2)+self.L])
         for i in proj_range:
             self.i_history.append(i)
+            if s_prob==0:
+                s=1
+            elif s_prob==1:
+                s=0
+            else:           
+                s=s_prob<np.random.rand()
             self.s_history.append(s)
             self.measure(s,i,i+1)
 
@@ -228,11 +415,11 @@ class Params:
 
 
     def measure_all_random_even(self,batchsize,proj_range):
+        '''
+        proj_range: (start,end) tuple
+        '''
         self.i_history=[]
         self.s_history=[]        
-        # if batchsize>proj_range.shape[0]:
-        #     raise ValueError("The batchsize {} cannot be larger than the proj_range {}".format(batchsize,proj_range.shape[0]))
-        # choice=np.random.choice(range(*proj_range),batchsize,replace=False)
         proj_range_even=[i//2 for i in proj_range]
         choice=np.random.choice(range(*proj_range_even),batchsize,replace=False)
         for i in choice:
@@ -241,4 +428,3 @@ class Params:
             self.s_history.append(s)
             self.measure(s,2*i,2*i+1)  
         
-    
