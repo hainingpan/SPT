@@ -11,12 +11,55 @@ import scipy.linalg as la
 import numpy.matlib
 import argparse
 import pickle
+import multiprocessing
+from mpi4py.futures import MPIPoolExecutor
+
+
+import numpy as np
+import scipy.sparse as sp
+import scipy.sparse.linalg as sla
+import scipy.linalg as la
+import numpy.matlib
 
 class Params:
     '''
     example: params=Params(mu=2)
     '''
     def __init__(self,
+    delta=0,    
+    L=100,
+    T=0,
+    bc=1,    # 0: open boundary condition; >0: PBC; <0: APBC
+    basis='mf'    # 'generate Hamiltonian of fermionic ('f') and Majorana basis ('m') or both ('mf')
+    ):
+        self.delta=delta
+        self.mu=2*(1-delta)
+        self.t=-(1+delta)
+        self.Delta=-(1+delta)
+        self.L=L
+        self.tau_z=np.array([[1,0],[0,-1]])
+        self.tau_y=np.array([[0,-1j],[1j,0]])
+        self.bc=bc
+        self.T=T
+        if 'f' in basis:
+            band1sm=np.diag(np.ones(L-1),1)
+            band1sm[-1,0]=1*(2*np.heaviside(bc,1/2)-1)
+            id_mat=np.eye(L)
+            # Hamiltonian in the ferimion basis
+            self.Hamiltonian_f=np.block([[-self.mu*id_mat-self.t*(band1sm+band1sm.T),-self.Delta*(band1sm-band1sm.T)],
+                                        [self.Delta*(band1sm-band1sm.T),self.mu*id_mat+self.t*(band1sm+band1sm.T)]])
+            # BdG Hamiltonian back to original        
+            self.Hamiltonian_f/=2
+
+        if 'm' in basis:    
+            # Hamiltonian in the Majorana basis
+            band=np.vstack([np.ones(L)*(1-delta)*1j,np.ones(L)*(1+delta)*1j]).flatten('F')
+            Ham=np.diag(band[:-1],-1)
+            Ham[0,-1]=(1+delta)*1j*bc
+            Ham=Ham+Ham.conj().T
+            self.Hamiltonian_m=Ham
+
+    def __init_obs__(self,
     delta=0,    
     L=100,
     T=0,
@@ -47,24 +90,31 @@ class Params:
         Ham[-1,0]=-(1+delta)*1j*bc
         self.Hamiltonian_m=Ham
 
-        
-
-
-    def bandstructure(self,H_type='f'):    
+    def bandstructure_obs(self,H_type='f'):    
         if H_type=='f':    
-            val,vec=la.eigh(self.Hamiltonian_f.toarray())
+            val,vec=la.eigh(self.Hamiltonian_f)
             sortindex=np.argsort(val)
             self.val_f=val[sortindex]
             self.vec_f=vec[:,sortindex]
         elif H_type=='m':
-            val,vec=la.eigh(self.Hamiltonian_m.toarray()) 
+            val,vec=la.eigh(self.Hamiltonian_m) 
             sortindex=np.argsort(val)
             self.val_m=val[sortindex]
             self.vec_m=vec[:,sortindex]
         else:
             raise ValueError('type of Hamiltonian ({}) not found'.format(H_type))
 
-
+    def bandstructure(self,basis='mf'):
+        if 'f' in basis:    
+            val,vec=la.eigh(self.Hamiltonian_f)
+            sortindex=np.argsort(val)
+            self.val_f=val[sortindex]
+            self.vec_f=vec[:,sortindex]
+        if 'm' in basis:
+            val,vec=np.linalg.eigh(self.Hamiltonian_m) 
+            sortindex=np.argsort(val)
+            self.val_m=val[sortindex]
+            self.vec_m=vec[:,sortindex]       
 
     def fermi_dist(self,energy,E_F):      
         if self.T==0:
@@ -120,6 +170,7 @@ class Params:
         # return np.block([[blkmat,zero],[zero,blkmat.T]])
         return blkmat
 
+    # Slower than measure() 8.3x times 
     def measure_obs(self,s,i,j):
         permutation_mat=sp.diags([1],[0],(self.L*2,self.L*2)).tocsr()
         # i <-> -2
@@ -165,7 +216,8 @@ class Params:
         
         self.C_m_history.append(Psi)
 
-    def measure(self,s,i,j):
+    # Slower than measure() 1.7x times 
+    def measure_roll(self,s,i,j):
         if not hasattr(self,'C_m'):
             self.covariance_matrix_m()
         
@@ -207,6 +259,50 @@ class Params:
         Psi[i:,:]=np.roll(Psi[i:,:],1,0)
         Psi[:,i:]=np.roll(Psi[:,i:],1,1)
         # Psi=permutation_mat.T@Psi@permutation_mat        
+        
+        self.C_m_history.append(Psi) 
+
+    def measure(self,s,i,j):
+        if not hasattr(self,'C_m'):
+            self.covariance_matrix_m()
+        
+        # m=np.arange(64).reshape((8,8))
+        
+        m=self.C_m_history[-1].copy()
+        # i<-> -2
+        m[[i,-2]]=m[[-2,i]]
+        m[:,[i,-2]]=m[:,[-2,i]]
+        # j<->-1
+        m[[j,-1]]=m[[-1,j]]
+        m[:,[j,-1]]=m[:,[-1,j]]
+
+        self.m=m
+
+        Gamma_LL=m[:-2,:-2]
+        Gamma_LR=m[:-2,-2:]
+        Gamma_RR=m[-2:,-2:]       
+
+        proj=self.projection(s)
+        Upsilon_LL=proj[:-2,:-2]
+        Upsilon_LR=proj[:-2,-2:]
+        Upsilon_RR=proj[-2:,-2:]
+        Upsilon_RL=proj[-2:,:-2]
+        zero=np.zeros((self.L*2-2,2))
+        zero0=np.zeros((2,2))
+        mat1=np.block([[Gamma_LL,zero],[zero.T,Upsilon_RR]])
+        mat2=np.block([[Gamma_LR,zero],[zero0,Upsilon_RL]])
+        mat3=np.block([[Gamma_RR,np.eye(2)],[-np.eye(2),Upsilon_LL]])
+        self.mat2=mat2
+        if np.count_nonzero(mat2):
+            Psi=mat1+mat2@(la.solve(mat3,mat2.T))
+        else:
+            Psi=mat1
+        
+        Psi[[j,-1]]=Psi[[-1,j]]
+        Psi[:,[j,-1]]=Psi[:,[-1,j]]
+
+        Psi[[i,-2]]=Psi[[-2,i]]
+        Psi[:,[i,-2]]=Psi[:,[-2,i]]
         
         self.C_m_history.append(Psi) 
 
@@ -343,9 +439,10 @@ class Params:
             self.i_history.append(2*i)  #only even is accepted 
             self.s_history.append(s)
             self.measure(s,2*i,2*i+1)  
+        
 
 def mutual_info_run(batchsize,es=100):
-    delta_list=np.linspace(-1,1,100)**3
+    delta_list=np.linspace(-1,1,20)**3
     mutual_info_dis_list=[]
     if batchsize==0:
         ensemblesize=1
@@ -361,6 +458,53 @@ def mutual_info_run(batchsize,es=100):
         mutual_info_dis_list.append(mutual_info_ensemble_list)
     return delta_list,mutual_info_dis_list
 
+def MI_pool(delta,batchsize):
+    params=Params(delta=delta,L=64,bc=-1)
+    params.measure_all_random_even(batchsize,(int(params.L/2),params.L))
+    return params.mutual_information_m(np.arange(int(params.L/2)),np.arange(int(params.L/2))+params.L)
+    
+
+def mutual_info_run_pool(batchsize,es=100):
+    delta_list=np.linspace(-1,1,20)**3
+    mutual_info_dis_list=[]
+    if batchsize==0:
+        ensemblesize=1
+    else:
+        ensemblesize=es
+
+    for delta in delta_list:
+        mutual_info_ensemble_list=[]
+        mutual_info_ensemble_list_pool=[]
+        with multiprocessing.Pool(4) as pool:
+            inputs=[(delta,batchsize) for _ in range(ensemblesize)]
+            mutual_info_ensemble_list=pool.starmap(MI_pool,inputs)
+            # for ensemble in range(ensemblesize):
+            #     mutual_info_ensemble_list_pool.append(pool.apply_async(MI,(delta,batchsize)))            
+            # for r in mutual_info_ensemble_list_pool:
+            #     mutual_info_ensemble_list.append(r.get())
+        mutual_info_dis_list.append(mutual_info_ensemble_list)
+    return delta_list,mutual_info_dis_list
+
+def mutual_info_run_MPI(batchsize,es=100):
+    delta_list=np.linspace(-1,1,20)**3
+    mutual_info_dis_list=[]
+    if batchsize==0:
+        ensemblesize=1
+    else:
+        ensemblesize=es
+
+    for delta in delta_list:
+        mutual_info_ensemble_list=[]
+        mutual_info_ensemble_list_pool=[]
+        executor=MPIPoolExecutor()
+        inputs=[(delta,batchsize) for _ in range(ensemblesize)]
+        mutual_info_ensemble_list_pool=executor.starmap(MI_pool,inputs)
+        executor.shutdown()
+        for result in mutual_info_ensemble_list_pool:
+            mutual_info_ensemble_list.append(result)
+        mutual_info_dis_list.append(mutual_info_ensemble_list)
+    return delta_list,mutual_info_dis_list
+
 
 if __name__=="__main__":   
     parser=argparse.ArgumentParser()
@@ -370,18 +514,19 @@ if __name__=="__main__":
 
     delta_dict={}
     mutual_info_dis_dict={}
+    density_list=(16,)
     
-    for i in (0,12,13,14,15,16):
+    for i in density_list:
         print(i)
         st=time.time()
-        delta_dict[i],mutual_info_dis_dict[i]=mutual_info_run(i,args.es)
+        delta_dict[i],mutual_info_dis_dict[i]=mutual_info_run_MPI(i,args.es)
         print(time.time()-st)
 
     with open('mutual_info_Ap_En{:d}.pickle'.format(args.es),'wb') as f:
         pickle.dump([delta_dict,mutual_info_dis_dict],f)
     
     fig,ax=plt.subplots()
-    for i in (0,12,14,15,16):
+    for i in density_list:
         ax.plot(delta_dict[i],np.array(mutual_info_dis_dict[i]).mean(axis=1)/np.log(2),label='Number of gates: {}'.format(i))
 
     ax.legend()
