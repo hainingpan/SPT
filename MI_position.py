@@ -31,7 +31,7 @@ def mutual_info_run_MPI(s_prob,es=100):
 
 def MI_pool(delta,s_prob):
     params=Params(delta=delta,L=64,bc=-1)
-    params.measure_all(s_prob)
+    params.measure_all_position(s_prob)
     return params.mutual_information_m(np.arange(int(params.L/2)),np.arange(params.L/2)+params.L)
 
 if __name__=="__main__":   
@@ -42,7 +42,7 @@ if __name__=="__main__":
 
     delta_dict={}
     mutual_info_dis_dict={}
-    s_prob_list=np.linspace(0,1,6)
+    s_prob_list=np.linspace(0,15,6)/16
     
     for i in s_prob_list:
         print(i)
@@ -50,7 +50,7 @@ if __name__=="__main__":
         delta_dict[i],mutual_info_dis_dict[i]=mutual_info_run_MPI(i,args.es)
         print(time.time()-st)
 
-    with open('mutual_info_s_prob_En{:d}.pickle'.format(args.es),'wb') as f:
+    with open('mutual_info_position_En{:d}.pickle'.format(args.es),'wb') as f:
         pickle.dump([delta_dict,mutual_info_dis_dict],f)
     
     fig,ax=plt.subplots()
@@ -61,4 +61,4 @@ if __name__=="__main__":
     ax.set_xlabel(r'$\delta$')
     ax.set_ylabel(r'Mutual information between A and B [$\log2$]')
 
-    fig.savefig('mutual_info_s_prob_En{:d}.pdf'.format(args.es),bbox_inches='tight')
+    fig.savefig('mutual_info_position_En{:d}.pdf'.format(args.es),bbox_inches='tight')
