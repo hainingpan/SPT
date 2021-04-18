@@ -33,7 +33,6 @@ def mutual_info_run_MPI(s_prob,es=100):
 def MI_pool(delta,s_prob):
     params=Params(delta=delta,L=64,bc=-1)
     params.measure_all_position(s_prob)
-    print(np.sum(params.s_history))
     return params.mutual_information_m(np.arange(int(params.L/2)),np.arange(params.L/2)+params.L)
 
 if __name__=="__main__":   
