@@ -30,7 +30,7 @@ def mutual_info_run_MPI(s_prob,es=100):
     return delta_list,mutual_info_dis_list
 
 def MI_pool(delta,s_prob):
-    params=Params(delta=delta,L=64,bc=-1)
+    params=Params(delta=delta,L=64,bc=-1,basis='m')
     params.measure_all(s_prob)
     return params.mutual_information_m(np.arange(int(params.L/2)),np.arange(params.L/2)+params.L)
 

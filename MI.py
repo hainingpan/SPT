@@ -29,7 +29,7 @@ def mutual_info_run(batchsize,es=100):
     for delta in delta_list:
         mutual_info_ensemble_list=[]
         for ensemble in range(ensemblesize):
-            params=Params(delta=delta,L=64,bc=-1)
+            params=Params(delta=delta,L=64,bc=-1,basis='m')
             params.measure_all_random_even(batchsize,(int(params.L/2),params.L))
             mutual_info_ensemble_list.append(params.mutual_information_m(np.arange(int(params.L/2)),np.arange(int(params.L/2))+params.L))
         mutual_info_dis_list.append(mutual_info_ensemble_list)
