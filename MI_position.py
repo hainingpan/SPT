@@ -42,7 +42,7 @@ if __name__=="__main__":
 
     delta_dict={}
     mutual_info_dis_dict={}
-    s_prob_list=np.linspace(0,15,6)/16
+    s_prob_list=np.linspace(0,16,5)/16
     
     for i in s_prob_list:
         print(i)
