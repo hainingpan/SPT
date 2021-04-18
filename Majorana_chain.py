@@ -282,7 +282,9 @@ class Params:
         Psi[[i,-2]]=Psi[[-2,i]]
         Psi[:,[i,-2]]=Psi[:,[-2,i]]
         
-        self.C_m_history.append(Psi) 
+        self.C_m_history.append(Psi)
+        self.s_history.append(s)
+        self.i_history.append(i)
 
 
     def c_subregion_f_obs(self,subregion):
@@ -375,8 +377,8 @@ class Params:
         for _ in range(batchsize):
             i=np.random.randint(*proj_range)
             s=np.random.randint(0,2)
-            self.i_history.append(i)
-            self.s_history.append(s)
+            # self.i_history.append(i)
+            # self.s_history.append(s)
             self.measure(s,i,i+1)
 
     def measure_all(self,s_prob):
@@ -391,14 +393,29 @@ class Params:
         # proj_range=np.hstack([np.arange(int(self.L/2),self.L)])
         # proj_range=np.hstack([np.arange(int(self.L/2),self.L),np.arange(int(self.L/2),int(self.L/2)+2)+self.L])
         for i in proj_range:
-            self.i_history.append(i)
+            # self.i_history.append(i)
             if s_prob==0:
                 s=1
             elif s_prob==1:
                 s=0
             else:           
                 s=s_prob<np.random.rand()
-            self.s_history.append(s)
+            # self.s_history.append(s)
+            self.measure(s,i,i+1)
+
+    def measure_all_position(self,s_prob):
+        '''
+        The random position, the prob of s=0 (unoccupied)
+        '''
+        self.i_history=[]
+        self.s_history=[]
+        proj_range=np.arange(int(self.L/2),self.L,2)
+        s_choice=np.random.choice(range(len(proj_range)),int(s_prob*len(proj_range)),replace=False)
+        s_list=np.ones(len(proj_range),dtype=int)
+        s_list[s_choice]=0
+        for i,s in zip(proj_range,s_list):            
+            # self.i_history.append(i)
+            # self.s_history.append(s)
             self.measure(s,i,i+1)
 
     def measure_all_random(self,batchsize,proj_range):
@@ -409,8 +426,8 @@ class Params:
         choice=np.random.choice(range(*proj_range),batchsize,replace=False)
         for i in choice:
             s=np.random.randint(0,2)
-            self.i_history.append(i)  
-            self.s_history.append(s)
+            # self.i_history.append(i)  
+            # self.s_history.append(s)
             self.measure(s,i,i+1)      
 
 
@@ -424,7 +441,7 @@ class Params:
         choice=np.random.choice(range(*proj_range_even),batchsize,replace=False)
         for i in choice:
             s=np.random.randint(0,2)
-            self.i_history.append(2*i)  #only even is accepted 
-            self.s_history.append(s)
+            # self.i_history.append(2*i)  #only even is accepted 
+            # self.s_history.append(s)
             self.measure(s,2*i,2*i+1)  
         

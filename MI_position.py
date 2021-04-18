@@ -27,11 +27,13 @@ def mutual_info_run_MPI(s_prob,es=100):
         for result in mutual_info_ensemble_list_pool:
             mutual_info_ensemble_list.append(result)
         mutual_info_dis_list.append(mutual_info_ensemble_list)
+    
     return delta_list,mutual_info_dis_list
 
 def MI_pool(delta,s_prob):
     params=Params(delta=delta,L=64,bc=-1)
     params.measure_all_position(s_prob)
+    print(np.sum(params.s_history))
     return params.mutual_information_m(np.arange(int(params.L/2)),np.arange(params.L/2)+params.L)
 
 if __name__=="__main__":   
