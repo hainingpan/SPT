@@ -445,6 +445,19 @@ class Params:
             if s == 0 or s ==1:
                 self.measure(s,position,position+1)
 
+    def measure_all_born(self,proj_range=None):
+        if proj_range is None:
+            proj_range=np.arange(int(self.L/2),self.L,2)
+
+        self.covariance_matrix_m()
+        for i in proj_range:
+            P_0=(self.C_m_history[-1][i,i+1]+1)/2
+            # print(P_0)
+            if np.random.rand() < P_0:                
+                self.measure(0,i,i+1)
+            else:
+                self.measure(1,i,i+1)
+
     def measure_all_random(self,batchsize,proj_range):
         # self.i_history=[]
         # self.s_history=[]        
