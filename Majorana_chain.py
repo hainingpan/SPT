@@ -3,6 +3,7 @@ import scipy.sparse as sp
 import scipy.sparse.linalg as sla
 import scipy.linalg as la
 import numpy.matlib
+import itertools
 
 class Params:
     '''
@@ -126,10 +127,6 @@ class Params:
     def projection_obs(self,s):
         '''
         s= 0,1 occupancy number
-        i,j: adjacent pair of Majorana
-        flow is from alpha_{i,j} to gamma_{i,j}
-
-        return: the basis are ordered as gamma_i,gamma_j,alpha_j,alpha_i
         '''
         assert (s==0 or s==1),"s={} is either 0 or 1".format(s)
         blkmat=(np.array([[0,-(-1)**s],[(-1)**s,0]]))
@@ -243,6 +240,10 @@ class Params:
     def measure(self,s,i,j):
         if not hasattr(self,'C_m'):
             self.covariance_matrix_m()
+        if not hasattr(self,'s_history'):
+            self.s_history=[]
+        if not hasattr(self,'i_history'):
+            self.i_history=[]
         
         # m=np.arange(64).reshape((8,8))
         
@@ -323,7 +324,7 @@ class Params:
         if not hasattr(self,'C_m'):
             self.covariance_matrix_m()
 
-        if Gamma==None:
+        if Gamma is None:
             Gamma=self.C_m_history[-1]
         try:
             subregion=np.array(subregion)
@@ -336,7 +337,7 @@ class Params:
     def c_subregion_m(self,subregion,Gamma=None):
         if not hasattr(self,'C_m'):
             self.covariance_matrix_m()
-        if Gamma==None:
+        if Gamma is None:
             Gamma=self.C_m_history[-1]
         try:
             subregion=np.array(subregion)
@@ -372,8 +373,8 @@ class Params:
         return s_A+s_B-s_AB
 
     def measure_batch(self,batchsize,proj_range):
-        self.i_history=[]
-        self.s_history=[]
+        # self.i_history=[]
+        # self.s_history=[]
         for _ in range(batchsize):
             i=np.random.randint(*proj_range)
             s=np.random.randint(0,2)
@@ -381,17 +382,15 @@ class Params:
             # self.s_history.append(s)
             self.measure(s,i,i+1)
 
-    def measure_all(self,s_prob):
+    def measure_all(self,s_prob,proj_range=None):
         '''
         The probability of s=0 (unoccupied)
 
         '''
-        self.i_history=[]
-        self.s_history=[]
-        # proj_range=np.hstack([np.arange(int(self.L/2),self.L,2),np.arange(int(self.L/2),self.L,2)+self.L])
-        proj_range=np.hstack([np.arange(int(self.L/2),self.L,2)]) 
-        # proj_range=np.hstack([np.arange(int(self.L/2),self.L)])
-        # proj_range=np.hstack([np.arange(int(self.L/2),self.L),np.arange(int(self.L/2),int(self.L/2)+2)+self.L])
+        # self.i_history=[]
+        # self.s_history=[]
+        if proj_range is None:
+            proj_range=np.arange(int(self.L/2),self.L,2)
         for i in proj_range:
             # self.i_history.append(i)
             if s_prob==0:
@@ -407,20 +406,48 @@ class Params:
         '''
         The random position, the prob of s=0 (unoccupied)
         '''
-        self.i_history=[]
-        self.s_history=[]
+        # self.i_history=[]
+        # self.s_history=[]
         proj_range=np.arange(int(self.L/2),self.L,2)
-        s_choice=np.random.choice(range(len(proj_range)),int(s_prob*len(proj_range)),replace=False)
-        s_list=np.ones(len(proj_range),dtype=int)
-        s_list[s_choice]=0
-        for i,s in zip(proj_range,s_list):            
-            # self.i_history.append(i)
-            # self.s_history.append(s)
-            self.measure(s,i,i+1)
+        if random:
+            s_choice=np.random.choice(range(len(proj_range)),int(s_prob*len(proj_range)),replace=False)
+            s_list=np.ones(len(proj_range),dtype=int)
+            s_list[s_choice]=0
+            for i,s in zip(proj_range,s_list):            
+                # self.i_history.append(i)
+                # self.s_history.append(s)
+                self.measure(s,i,i+1)  
+
+    def generate_position_list(self,proj_range,s_prob):
+        '''
+        proj_range: the list of first index of the specific projection operator 
+        return: a iterator for s=0
+        Generate position list, then feed into measure_list()
+        '''        
+        r=int(len(proj_range)*(s_prob))
+        index_all=range(len(proj_range))
+        index_s_0=itertools.combinations(index_all,r)
+        s_list_list=[]
+        for s_0 in index_s_0:
+            s_list=np.ones(len(proj_range),dtype=int)
+            s_list[list(s_0)]=0
+            s_list_list.append(s_list)
+        return s_list_list
+        
+
+    def measure_list(self,proj_range,s_list):
+        '''
+        proj_range: the list of first index of the specific projection operator
+        s_list: 0: emtpy; 1: filled; other: no measurement
+        '''
+        assert len(proj_range) == len(s_list), 'Length of proj_range ({}) is not equal to the length of s_list ({})'.format(len(proj_range),len(s_list))
+        for position,s in zip(proj_range,s_list):
+            if s == 0 or s ==1:
+                self.measure(s,position,position+1)
 
     def measure_all_random(self,batchsize,proj_range):
-        self.i_history=[]
-        self.s_history=[]        
+        # self.i_history=[]
+        # self.s_history=[]        
         # if batchsize>proj_range.shape[0]:
         #     raise ValueError("The batchsize {} cannot be larger than the proj_range {}".format(batchsize,proj_range.shape[0]))
         choice=np.random.choice(range(*proj_range),batchsize,replace=False)
@@ -435,8 +462,8 @@ class Params:
         '''
         proj_range: (start,end) tuple
         '''
-        self.i_history=[]
-        self.s_history=[]        
+        # self.i_history=[]
+        # self.s_history=[]        
         proj_range_even=[i//2 for i in proj_range]
         choice=np.random.choice(range(*proj_range_even),batchsize,replace=False)
         for i in choice:
