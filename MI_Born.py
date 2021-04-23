@@ -47,7 +47,7 @@ if __name__=="__main__":
     mutual_info_dis_dict={}
     s_history_dis_dict={}
 
-    T_list=np.linspace(0,3e-1,10)
+    T_list=np.linspace(0,3e-1,50)
     for T in (T_list):
         st=time.time()
         delta_dict[T],mutual_info_dis_dict[T],s_history_dis_dict[T]=mutual_info_run_MPI(T,args.es)
