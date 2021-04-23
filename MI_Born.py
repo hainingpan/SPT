@@ -1,6 +1,6 @@
 from Majorana_chain import *
-import matplotlib
-matplotlib.use('Agg')
+# import matplotlib
+# matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import time
 import argparse
@@ -9,7 +9,7 @@ import numpy as np
 from mpi4py.futures import MPIPoolExecutor
 
 
-def mutual_info_run_MPI(es=100):
+def mutual_info_run_MPI(T,es=100):
     delta_list=np.linspace(-1,1,100)**3
     mutual_info_dis_list=[]
     s_history_dis_list=[]
@@ -19,10 +19,9 @@ def mutual_info_run_MPI(es=100):
         mutual_info_ensemble_list=[]
         mutual_info_ensemble_list_pool=[]
         s_history_list=[]
-        st=time.time()
         executor=MPIPoolExecutor()
-        inputs=[delta for _ in range(ensemblesize)]
-        mutual_info_ensemble_list_pool=executor.map(MI_pool,inputs)
+        inputs=[(delta,T) for _ in range(ensemblesize)]
+        mutual_info_ensemble_list_pool=executor.starmap(MI_pool,inputs)
         executor.shutdown()
         for result in mutual_info_ensemble_list_pool:
             MI,s_history=result
@@ -30,12 +29,11 @@ def mutual_info_run_MPI(es=100):
             s_history_list.append(s_history)
         mutual_info_dis_list.append(mutual_info_ensemble_list)
         s_history_dis_list.append(s_history_list)
-        print("Time elapsed for {:.4f}: {:.4f}".format(delta,time.time()-st))
 
     return delta_list,mutual_info_dis_list,s_history_dis_list
 
-def MI_pool(delta):
-    params=Params(delta=delta,L=64,bc=-1,basis='m')
+def MI_pool(delta,T):
+    params=Params(delta=delta,L=64,bc=-1,basis='m',T=T)
     params.measure_all_born()
     return params.mutual_information_m(np.arange(int(params.L/2)),np.arange(params.L/2)+params.L),params.s_history
 
@@ -49,19 +47,23 @@ if __name__=="__main__":
     mutual_info_dis_dict={}
     s_history_dis_dict={}
 
-    i=0  
-    delta_dict[i],mutual_info_dis_dict[i],s_history_dis_dict[i]=mutual_info_run_MPI(args.es)
+    T_list=np.linspace(0,3e-1,10)
+    for T in (T_list):
+        st=time.time()
+        delta_dict[T],mutual_info_dis_dict[T],s_history_dis_dict[T]=mutual_info_run_MPI(T,args.es)
+        print("Time elapsed for {:.4f}: {:.4f}".format(T,time.time()-st))
+
 
     with open('mutual_info_Born_En{:d}.pickle'.format(args.es),'wb') as f:
         pickle.dump([delta_dict,mutual_info_dis_dict,s_history_dis_dict],f)
     
-    fig,ax=plt.subplots()
+    # fig,ax=plt.subplots()
     # for i in s_prob_list:
 
-    ax.plot(delta_dict[i],np.array(mutual_info_dis_dict[i]).mean(axis=1)/np.log(2),label='Born rule')
+    # ax.plot(delta_dict[i],np.array(mutual_info_dis_dict[i]).mean(axis=1)/np.log(2),label='Born rule')
 
-    ax.legend()
-    ax.set_xlabel(r'$\delta$')
-    ax.set_ylabel(r'Mutual information between A and B [$\log2$]')
+    # ax.legend()
+    # ax.set_xlabel(r'$\delta$')
+    # ax.set_ylabel(r'Mutual information between A and B [$\log2$]')
 
-    fig.savefig('mutual_info_Born_En{:d}.pdf'.format(args.es),bbox_inches='tight')
+    # fig.savefig('mutual_info_Born_En{:d}.pdf'.format(args.es),bbox_inches='tight')
