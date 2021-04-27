@@ -448,8 +448,12 @@ class Params:
     def measure_all_born(self,proj_range=None,order=None):
         if proj_range is None:
             proj_range=np.arange(int(self.L/2),self.L,2)
-        if order=='alternating':
+        if order=='e2':
             proj_range=np.concatenate((proj_range[::2],proj_range[1::2]))
+        if order=='e3':
+            proj_range=np.concatenate((proj_range[::3],proj_range[1::3],proj_range[2::3]))
+        if order=='e4':
+            proj_range=np.concatenate((proj_range[::4],proj_range[1::4],proj_range[2::4]+proj_range[3::4]))
 
         self.covariance_matrix_m()
         for i in proj_range:
