@@ -445,9 +445,11 @@ class Params:
             if s == 0 or s ==1:
                 self.measure(s,position,position+1)
 
-    def measure_all_born(self,proj_range=None):
+    def measure_all_born(self,proj_range=None,order=None):
         if proj_range is None:
             proj_range=np.arange(int(self.L/2),self.L,2)
+        if order=='alternating':
+            proj_range=np.concatenate((proj_range[::2],proj_range[1::2]))
 
         self.covariance_matrix_m()
         for i in proj_range:
@@ -484,4 +486,34 @@ class Params:
             # self.i_history.append(2*i)  #only even is accepted 
             # self.s_history.append(s)
             self.measure(s,2*i,2*i+1)  
+
+    def log_neg(self,La=None,Gamma=None):
+        '''
+        La: number of Majorana site in A, the corresponding Majorana site in B is 2*L-La
+        '''
+        
+        if not hasattr(self,'C_m'):
+            self.covariance_matrix_m()
+        if La is None:
+            La=self.L
+        if Gamma is None:
+            Gamma=self.C_m_history[-1]
+
+        Gm_1= np.block([
+            [-Gamma[:La,:La], -1j*Gamma[:La,La:]],
+            [-1j*Gamma[La:,:La], Gamma[La:,La:]]
+        ])
+
+        Gm_2= np.block([
+        [-Gamma[:La,:La], 1j*Gamma[:La,La:]],
+        [1j*Gamma[La:,:La], Gamma[La:,La:]]
+        ])
+
+        Gx=np.eye(2*self.L)-np.dot(np.eye(2*self.L)+1j*Gm_2,np.dot(np.linalg.inv(np.eye(2*self.L)-np.dot(Gm_1,Gm_2)),np.eye(2*self.L)+1j*Gm_1))
+        Gx=(Gx+Gx.conj().T)/2
+        nu=np.linalg.eigvalsh(Gx)
+        eA=np.sum(np.log(((1+nu+1j*0)/2)**0.5+((1-nu+1j*0)/2)**0.5))/2
+        chi =np.linalg.eigvalsh(1j*Gamma)
+        sA=np.sum(np.log(((1+chi)/2)**2+((1-chi)/2)**2))/4
+        return np.real(eA+sA) 
         

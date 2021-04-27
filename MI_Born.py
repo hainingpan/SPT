@@ -34,7 +34,7 @@ def mutual_info_run_MPI(T,es=100):
 
 def MI_pool(delta,T):
     params=Params(delta=delta,L=64+4,bc=-1,basis='m',T=T)
-    params.measure_all_born()
+    params.measure_all_born(order='alternating')
     return params.mutual_information_m(np.arange(int(params.L/2)),np.arange(params.L/2)+params.L),params.s_history
 
 if __name__=="__main__":   
