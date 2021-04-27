@@ -33,7 +33,7 @@ def mutual_info_run_MPI(T,es=100):
     return delta_list,mutual_info_dis_list,s_history_dis_list
 
 def MI_pool(delta,T):
-    params=Params(delta=delta,L=64+4,bc=-1,basis='m',T=T)
+    params=Params(delta=delta,L=64,bc=-1,basis='m',T=T)
     params.measure_all_born(order='alternating')
     return params.mutual_information_m(np.arange(int(params.L/2)),np.arange(params.L/2)+params.L),params.s_history
 
@@ -55,7 +55,7 @@ if __name__=="__main__":
         print("Time elapsed for {:.4f}: {:.4f}".format(T,time.time()-st))
 
 
-    with open('mutual_info_Born_En{:d}_L68.pickle'.format(args.es),'wb') as f:
+    with open('mutual_info_Born_En{:d}_alternating.pickle'.format(args.es),'wb') as f:
         pickle.dump([delta_dict,mutual_info_dis_dict,s_history_dis_dict],f)
     
     # fig,ax=plt.subplots()
