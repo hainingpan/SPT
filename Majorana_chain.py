@@ -43,50 +43,50 @@ class Params:
             Ham=Ham+Ham.conj().T
             self.Hamiltonian_m=Ham
 
-    def __init_obs__(self,
-    delta=0,    
-    L=100,
-    T=0,
-    bc=1    # 0: open boundary condition; >0: PBC; <0: APBC
-    ):
-        self.delta=delta
-        self.mu=2*(1-delta)
-        self.t=-(1+delta)
-        self.Delta=-(1+delta)
-        self.L=L
-        self.tau_z=sp.dia_matrix(np.diag([1,-1]))
-        self.tau_y=sp.dia_matrix(np.array([[0,-1j],[1j,0]]))
-        self.bc=bc
-        self.T=T
-        self.band1sm=sp.diags([1],[1],(L,L)).tocsr()
-        self.bandm1sm=sp.diags([1],[-1],(L,L)).tocsr()
-        self.band1sm[-1,0]=1*(2*np.heaviside(bc,1/2)-1)
-        self.bandm1sm[0,-1]=1*(2*np.heaviside(bc,1/2)-1)
-        # Hamiltonian in the ferimion basis
-        self.Hamiltonian_f=-self.mu*sp.kron(self.tau_z,sp.identity(self.L))-sp.kron(self.t*self.tau_z+1j*self.Delta*self.tau_y,self.band1sm)-sp.kron(self.t*self.tau_z-1j*self.Delta*self.tau_y,self.bandm1sm)
-        # BdG Hamiltonian back to original
+    # def __init_obs__(self,
+    # delta=0,    
+    # L=100,
+    # T=0,
+    # bc=1    # 0: open boundary condition; >0: PBC; <0: APBC
+    # ):
+    #     self.delta=delta
+    #     self.mu=2*(1-delta)
+    #     self.t=-(1+delta)
+    #     self.Delta=-(1+delta)
+    #     self.L=L
+    #     self.tau_z=sp.dia_matrix(np.diag([1,-1]))
+    #     self.tau_y=sp.dia_matrix(np.array([[0,-1j],[1j,0]]))
+    #     self.bc=bc
+    #     self.T=T
+    #     self.band1sm=sp.diags([1],[1],(L,L)).tocsr()
+    #     self.bandm1sm=sp.diags([1],[-1],(L,L)).tocsr()
+    #     self.band1sm[-1,0]=1*(2*np.heaviside(bc,1/2)-1)
+    #     self.bandm1sm[0,-1]=1*(2*np.heaviside(bc,1/2)-1)
+    #     # Hamiltonian in the ferimion basis
+    #     self.Hamiltonian_f=-self.mu*sp.kron(self.tau_z,sp.identity(self.L))-sp.kron(self.t*self.tau_z+1j*self.Delta*self.tau_y,self.band1sm)-sp.kron(self.t*self.tau_z-1j*self.Delta*self.tau_y,self.bandm1sm)
+    #     # BdG Hamiltonian back to original
         
-        self.Hamiltonian_f/=2
-        # Hamiltonian in the Majorana basis
-        band=np.vstack([np.ones(L)*(1-delta)*1j,np.ones(L)*(1+delta)*1j]).flatten('F')
-        Ham=sp.diags(np.array([band[:-1],band[:-1].conj()]),np.array([-1,1]),shape=(2*L,2*L)).tocsr()
-        Ham[0,-1]=(1+delta)*1j*bc
-        Ham[-1,0]=-(1+delta)*1j*bc
-        self.Hamiltonian_m=Ham
+    #     self.Hamiltonian_f/=2
+    #     # Hamiltonian in the Majorana basis
+    #     band=np.vstack([np.ones(L)*(1-delta)*1j,np.ones(L)*(1+delta)*1j]).flatten('F')
+    #     Ham=sp.diags(np.array([band[:-1],band[:-1].conj()]),np.array([-1,1]),shape=(2*L,2*L)).tocsr()
+    #     Ham[0,-1]=(1+delta)*1j*bc
+    #     Ham[-1,0]=-(1+delta)*1j*bc
+    #     self.Hamiltonian_m=Ham
 
-    def bandstructure_obs(self,H_type='f'):    
-        if H_type=='f':    
-            val,vec=la.eigh(self.Hamiltonian_f)
-            sortindex=np.argsort(val)
-            self.val_f=val[sortindex]
-            self.vec_f=vec[:,sortindex]
-        elif H_type=='m':
-            val,vec=la.eigh(self.Hamiltonian_m) 
-            sortindex=np.argsort(val)
-            self.val_m=val[sortindex]
-            self.vec_m=vec[:,sortindex]
-        else:
-            raise ValueError('type of Hamiltonian ({}) not found'.format(H_type))
+    # def bandstructure_obs(self,H_type='f'):    
+    #     if H_type=='f':    
+    #         val,vec=la.eigh(self.Hamiltonian_f)
+    #         sortindex=np.argsort(val)
+    #         self.val_f=val[sortindex]
+    #         self.vec_f=vec[:,sortindex]
+    #     elif H_type=='m':
+    #         val,vec=la.eigh(self.Hamiltonian_m) 
+    #         sortindex=np.argsort(val)
+    #         self.val_m=val[sortindex]
+    #         self.vec_m=vec[:,sortindex]
+    #     else:
+    #         raise ValueError('type of Hamiltonian ({}) not found'.format(H_type))
 
     def bandstructure(self,basis='mf'):
         if 'f' in basis:    
@@ -124,13 +124,13 @@ class Params:
         self.C_m=np.real(self.C_m)
         self.C_m_history=[self.C_m]
     
-    def projection_obs(self,s):
-        '''
-        s= 0,1 occupancy number
-        '''
-        assert (s==0 or s==1),"s={} is either 0 or 1".format(s)
-        blkmat=(np.array([[0,-(-1)**s],[(-1)**s,0]]))
-        return sp.bmat([[blkmat,None],[None,blkmat.T]]).toarray()
+    # def projection_obs(self,s):
+    #     '''
+    #     s= 0,1 occupancy number
+    #     '''
+    #     assert (s==0 or s==1),"s={} is either 0 or 1".format(s)
+    #     blkmat=(np.array([[0,-(-1)**s],[(-1)**s,0]]))
+    #     return sp.bmat([[blkmat,None],[None,blkmat.T]]).toarray()
 
     def projection(self,s):
         '''
@@ -146,96 +146,96 @@ class Params:
         return blkmat
 
     # Slower than measure() 8.3x times 
-    def measure_obs(self,s,i,j):
-        permutation_mat=sp.diags([1],[0],(self.L*2,self.L*2)).tocsr()
-        # i <-> -2
-        permutation_mat[i,i]=0
-        permutation_mat[-2,-2]=0
-        permutation_mat[i,-2]=1
-        permutation_mat[-2,i]=1
-        # j <-> -1
-        permutation_mat[j,j]=0
-        permutation_mat[-1,-1]=0
-        permutation_mat[j,-1]=1
-        permutation_mat[-1,j]=1
-        if not hasattr(self,'C_m'):
-            self.covariance_matrix_m()
+    # def measure_obs(self,s,i,j):
+    #     permutation_mat=sp.diags([1],[0],(self.L*2,self.L*2)).tocsr()
+    #     # i <-> -2
+    #     permutation_mat[i,i]=0
+    #     permutation_mat[-2,-2]=0
+    #     permutation_mat[i,-2]=1
+    #     permutation_mat[-2,i]=1
+    #     # j <-> -1
+    #     permutation_mat[j,j]=0
+    #     permutation_mat[-1,-1]=0
+    #     permutation_mat[j,-1]=1
+    #     permutation_mat[-1,j]=1
+    #     if not hasattr(self,'C_m'):
+    #         self.covariance_matrix_m()
 
-        # m=np.arange(64).reshape((8,8))
-        # C_m_perm=permutation_mat.T@m@permutation_mat.T
+    #     # m=np.arange(64).reshape((8,8))
+    #     # C_m_perm=permutation_mat.T@m@permutation_mat.T
 
-        C_m_perm=permutation_mat.T@self.C_m_history[-1]@permutation_mat.T
+    #     C_m_perm=permutation_mat.T@self.C_m_history[-1]@permutation_mat.T
 
-        self.m=C_m_perm
-        Gamma_LL=C_m_perm[:-2,:-2]
-        Gamma_LR=C_m_perm[:-2,-2:]
-        Gamma_RR=C_m_perm[-2:,-2:]
+    #     self.m=C_m_perm
+    #     Gamma_LL=C_m_perm[:-2,:-2]
+    #     Gamma_LR=C_m_perm[:-2,-2:]
+    #     Gamma_RR=C_m_perm[-2:,-2:]
 
-        proj=self.projection(s)
-        Upsilon_LL=proj[:-2,:-2]
-        Upsilon_LR=proj[:-2,-2:]
-        Upsilon_RR=proj[-2:,-2:]
-        Upsilon_RL=proj[-2:,:-2]
-        zero=np.zeros((self.L*2-2,2))
-        zero0=np.zeros((2,2))
-        mat1=np.block([[Gamma_LL,zero],[zero.T,Upsilon_RR]])
-        mat2=np.block([[Gamma_LR,zero],[zero0,Upsilon_RL]])
-        mat3=np.block([[Gamma_RR,np.eye(2)],[-np.eye(2),Upsilon_LL]])
-        self.mat2=mat2
-        if np.count_nonzero(mat2):
-            Psi=mat1+mat2@(la.solve(mat3,mat2.T))
-        else:
-            Psi=mat1
-        Psi=permutation_mat.T@Psi@permutation_mat
+    #     proj=self.projection(s)
+    #     Upsilon_LL=proj[:-2,:-2]
+    #     Upsilon_LR=proj[:-2,-2:]
+    #     Upsilon_RR=proj[-2:,-2:]
+    #     Upsilon_RL=proj[-2:,:-2]
+    #     zero=np.zeros((self.L*2-2,2))
+    #     zero0=np.zeros((2,2))
+    #     mat1=np.block([[Gamma_LL,zero],[zero.T,Upsilon_RR]])
+    #     mat2=np.block([[Gamma_LR,zero],[zero0,Upsilon_RL]])
+    #     mat3=np.block([[Gamma_RR,np.eye(2)],[-np.eye(2),Upsilon_LL]])
+    #     self.mat2=mat2
+    #     if np.count_nonzero(mat2):
+    #         Psi=mat1+mat2@(la.solve(mat3,mat2.T))
+    #     else:
+    #         Psi=mat1
+    #     Psi=permutation_mat.T@Psi@permutation_mat
         
         
-        self.C_m_history.append(Psi)
+    #     self.C_m_history.append(Psi)
 
     # Slower than measure() 1.7x times 
-    def measure_roll(self,s,i,j):
-        if not hasattr(self,'C_m'):
-            self.covariance_matrix_m()
+    # def measure_roll(self,s,i,j):
+    #     if not hasattr(self,'C_m'):
+    #         self.covariance_matrix_m()
         
-        # m=np.arange(64).reshape((8,8))
+    #     # m=np.arange(64).reshape((8,8))
         
-        m=self.C_m_history[-1].copy()
-        m[i:,:]=np.roll(m[i:,:],-1,0)
-        m[:,i:]=np.roll(m[:,i:],-1,1)
+    #     m=self.C_m_history[-1].copy()
+    #     m[i:,:]=np.roll(m[i:,:],-1,0)
+    #     m[:,i:]=np.roll(m[:,i:],-1,1)
 
-        if j>i:
-            j-=1    #the position of j is rotated by 1 ahead
-        m[j:,:]=np.roll(m[j:,:],-1,0)
-        m[:,j:]=np.roll(m[:,j:],-1,1)
-        self.m=m
+    #     if j>i:
+    #         j-=1    #the position of j is rotated by 1 ahead
+    #     m[j:,:]=np.roll(m[j:,:],-1,0)
+    #     m[:,j:]=np.roll(m[:,j:],-1,1)
+    #     self.m=m
 
-        Gamma_LL=m[:-2,:-2]
-        Gamma_LR=m[:-2,-2:]
-        Gamma_RR=m[-2:,-2:]       
+    #     Gamma_LL=m[:-2,:-2]
+    #     Gamma_LR=m[:-2,-2:]
+    #     Gamma_RR=m[-2:,-2:]       
 
-        proj=self.projection(s)
-        Upsilon_LL=proj[:-2,:-2]
-        Upsilon_LR=proj[:-2,-2:]
-        Upsilon_RR=proj[-2:,-2:]
-        Upsilon_RL=proj[-2:,:-2]
-        zero=np.zeros((self.L*2-2,2))
-        zero0=np.zeros((2,2))
-        mat1=np.block([[Gamma_LL,zero],[zero.T,Upsilon_RR]])
-        mat2=np.block([[Gamma_LR,zero],[zero0,Upsilon_RL]])
-        mat3=np.block([[Gamma_RR,np.eye(2)],[-np.eye(2),Upsilon_LL]])
-        self.mat2=mat2
-        if np.count_nonzero(mat2):
-            Psi=mat1+mat2@(la.solve(mat3,mat2.T))
-        else:
-            Psi=mat1
+    #     proj=self.projection(s)
+    #     Upsilon_LL=proj[:-2,:-2]
+    #     Upsilon_LR=proj[:-2,-2:]
+    #     Upsilon_RR=proj[-2:,-2:]
+    #     Upsilon_RL=proj[-2:,:-2]
+    #     zero=np.zeros((self.L*2-2,2))
+    #     zero0=np.zeros((2,2))
+    #     mat1=np.block([[Gamma_LL,zero],[zero.T,Upsilon_RR]])
+    #     mat2=np.block([[Gamma_LR,zero],[zero0,Upsilon_RL]])
+    #     mat3=np.block([[Gamma_RR,np.eye(2)],[-np.eye(2),Upsilon_LL]])
+    #     self.mat2=mat2
+    #     if np.count_nonzero(mat2):
+    #         Psi=mat1+mat2@(la.solve(mat3,mat2.T))
+    #     else:
+    #         Psi=mat1
         
-        Psi[j:,:]=np.roll(Psi[j:,:],1,0)
-        Psi[:,j:]=np.roll(Psi[:,j:],1,1)
+    #     Psi[j:,:]=np.roll(Psi[j:,:],1,0)
+    #     Psi[:,j:]=np.roll(Psi[:,j:],1,1)
 
-        Psi[i:,:]=np.roll(Psi[i:,:],1,0)
-        Psi[:,i:]=np.roll(Psi[:,i:],1,1)
-        # Psi=permutation_mat.T@Psi@permutation_mat        
+    #     Psi[i:,:]=np.roll(Psi[i:,:],1,0)
+    #     Psi[:,i:]=np.roll(Psi[:,i:],1,1)
+    #     # Psi=permutation_mat.T@Psi@permutation_mat        
         
-        self.C_m_history.append(Psi) 
+    #     self.C_m_history.append(Psi) 
 
     def measure(self,s,i,j):
         if not hasattr(self,'C_m'):
@@ -273,7 +273,13 @@ class Params:
         mat3=np.block([[Gamma_RR,np.eye(2)],[-np.eye(2),Upsilon_LL]])
         self.mat2=mat2
         if np.count_nonzero(mat2):
+            # print(i)
+            # print(np.abs(np.round(Gamma_LR,2)).max())
+            # print(np.round(mat3,3))
             Psi=mat1+mat2@(la.solve(mat3,mat2.T))
+            # Psi=mat1+mat2@(la.lstsq(mat3,mat2.T)[0])
+
+            assert np.abs(np.trace(Psi))<1e-5, "Not trace zero {:e}".format(np.trace(Psi))
         else:
             Psi=mat1
         
@@ -283,25 +289,26 @@ class Params:
         Psi[[i,-2]]=Psi[[-2,i]]
         Psi[:,[i,-2]]=Psi[:,[-2,i]]
         
+        Psi=(Psi-Psi.T)/2   # Anti-symmetrize
         self.C_m_history.append(Psi)
         self.s_history.append(s)
         self.i_history.append(i)
 
 
-    def c_subregion_f_obs(self,subregion):
-        if not hasattr(self,'C'):
-            self.covariance_matrix_f()
-        try:
-            subregion=np.array(subregion)
-        except:
-            raise ValueError("The subregion is ill-defined"+subregion)
-        XX,YY=np.meshgrid(np.arange(2*self.L),np.arange(2*self.L))
-        mask_hh=np.isin(XX,subregion)*np.isin(YY,subregion)
-        mask_hp=np.isin(XX,subregion)*np.isin(YY,subregion+self.L)
-        mask_ph=np.isin(XX,subregion+self.L)*np.isin(YY,subregion)
-        mask_pp=np.isin(XX,subregion+self.L)*np.isin(YY,subregion+self.L)
-        mask=mask_hh+mask_hp+mask_ph+mask_pp
-        return self.C_f[mask].reshape((2*subregion.shape[0],2*subregion.shape[0]))
+    # def c_subregion_f_obs(self,subregion):
+    #     if not hasattr(self,'C'):
+    #         self.covariance_matrix_f()
+    #     try:
+    #         subregion=np.array(subregion)
+    #     except:
+    #         raise ValueError("The subregion is ill-defined"+subregion)
+    #     XX,YY=np.meshgrid(np.arange(2*self.L),np.arange(2*self.L))
+    #     mask_hh=np.isin(XX,subregion)*np.isin(YY,subregion)
+    #     mask_hp=np.isin(XX,subregion)*np.isin(YY,subregion+self.L)
+    #     mask_ph=np.isin(XX,subregion+self.L)*np.isin(YY,subregion)
+    #     mask_pp=np.isin(XX,subregion+self.L)*np.isin(YY,subregion+self.L)
+    #     mask=mask_hh+mask_hp+mask_ph+mask_pp
+    #     return self.C_f[mask].reshape((2*subregion.shape[0],2*subregion.shape[0]))
 
     def c_subregion_f(self,subregion):
         if not hasattr(self,'C'):
@@ -320,19 +327,19 @@ class Params:
         val=np.sort(val)[:subregion.shape[0]]
         return np.real(-np.sum(val*np.log(val+1e-18j))-np.sum((1-val)*np.log(1-val+1e-18j)))
 
-    def c_subregion_m_obs(self,subregion,Gamma=None):
-        if not hasattr(self,'C_m'):
-            self.covariance_matrix_m()
+    # def c_subregion_m_obs(self,subregion,Gamma=None):
+    #     if not hasattr(self,'C_m'):
+    #         self.covariance_matrix_m()
 
-        if Gamma is None:
-            Gamma=self.C_m_history[-1]
-        try:
-            subregion=np.array(subregion)
-        except:
-            raise ValueError("The subregion is ill-defined"+subregion)
-        XX,YY=np.meshgrid(np.arange(2*self.L),np.arange(2*self.L))
-        mask=np.isin(XX,subregion)*np.isin(YY,subregion)  
-        return Gamma[mask].reshape((subregion.shape[0],subregion.shape[0]))
+    #     if Gamma is None:
+    #         Gamma=self.C_m_history[-1]
+    #     try:
+    #         subregion=np.array(subregion)
+    #     except:
+    #         raise ValueError("The subregion is ill-defined"+subregion)
+    #     XX,YY=np.meshgrid(np.arange(2*self.L),np.arange(2*self.L))
+    #     mask=np.isin(XX,subregion)*np.isin(YY,subregion)  
+    #     return Gamma[mask].reshape((subregion.shape[0],subregion.shape[0]))
 
     def c_subregion_m(self,subregion,Gamma=None):
         if not hasattr(self,'C_m'):
@@ -348,8 +355,8 @@ class Params:
 
 
     def von_Neumann_entropy_m(self,subregion):
-        # c_A=self.c_subregion_m(subregion)
-        c_A=self.c_subregion_m_obs(subregion)
+        c_A=self.c_subregion_m(subregion)
+        # c_A=self.c_subregion_m_obs(subregion)
         val,vec=la.eigh(1j*c_A)
         self.val_sh=val
         val=np.sort(val)
@@ -520,4 +527,12 @@ class Params:
         chi =np.linalg.eigvalsh(1j*Gamma)
         sA=np.sum(np.log(((1+chi)/2)**2+((1-chi)/2)**2))/4
         return np.real(eA+sA) 
+
+    def CFT_correlator(self,x):
+        xx=lambda i,j: (np.sin(np.pi/(2*self.L)*np.abs(x[i]-x[j])))
+        eta=(xx(0,1)*xx(2,3))/(xx(0,2)*xx(1,3))
+        subregionA=np.arange(x[0],x[1])
+        subregionB=np.arange(x[2],x[3])
+        MI=self.mutual_information_m(subregionA,subregionB)
+        return eta, MI       
         
