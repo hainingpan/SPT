@@ -55,7 +55,7 @@ if __name__=="__main__":
         print("Time elapsed for {:.4f}: {:.4f}".format(T,time.time()-st))
 
 
-    with open('mutual_info_Born_En{:d}_alternating.pickle'.format(args.es),'wb') as f:
+    with open('mutual_info_Born_En{:d}_T_map.pickle'.format(args.es),'wb') as f:
         pickle.dump([delta_dict,mutual_info_dis_dict,s_history_dis_dict],f)
     
     # fig,ax=plt.subplots()
