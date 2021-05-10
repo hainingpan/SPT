@@ -24,7 +24,7 @@ def run(es,pt,L,Bp):
         subregionAp=np.arange(x[1],x[2],2)
         if Bp:
             subregionBp=np.concatenate([np.arange(x[3],2*L,2),np.arange(0,x[0],2)])
-        eta=cross_ratio(x,L)
+        eta=cross_ratio(x,2*L)
         for _ in range(es):
             if Bp:
                 params=Params(delta=0,L=L,bc=-1,basis='m').measure_all_Born(subregionAp).measure_all_Born(subregionBp)
