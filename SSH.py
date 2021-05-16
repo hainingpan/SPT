@@ -156,7 +156,7 @@ class Params:
         raise ValueError("type '{}' is not defined".format(type))
         
 
-    def measure(self,s,i,j):
+    def measure(self,s,ix,type='onsite'):
         if not hasattr(self,'C_m'):
             self.covariance_matrix()
         if not hasattr(self,'s_history'):
@@ -165,29 +165,33 @@ class Params:
             self.i_history=[]
                 
         m=self.C_m_history[-1].copy()
-        # i<-> -2
-        m[[i,-2]]=m[[-2,i]]
-        m[:,[i,-2]]=m[:,[-2,i]]
-        # j<->-1
-        m[[j,-1]]=m[[-1,j]]
-        m[:,[j,-1]]=m[:,[-1,j]]
+
+        for i_ind,i in enumerate(ix):
+            m[[i,-(len(ix)-i_ind)]]=m[[-(len(ix)-i_ind),i]]
+            m[:,[i,-(len(ix)-i_ind)]]=m[:,[-(len(ix)-i_ind),i]]
+        # # i<-> -2
+        # m[[i,-2]]=m[[-2,i]]
+        # m[:,[i,-2]]=m[:,[-2,i]]
+        # # j<->-1
+        # m[[j,-1]]=m[[-1,j]]
+        # m[:,[j,-1]]=m[:,[-1,j]]
 
         self.m=m
 
-        Gamma_LL=m[:-2,:-2]
-        Gamma_LR=m[:-2,-2:]
-        Gamma_RR=m[-2:,-2:]       
+        Gamma_LL=m[:-len(ix),:-len(ix)]
+        Gamma_LR=m[:-len(ix),-len(ix):]
+        Gamma_RR=m[-len(ix):,-len(ix):]       
 
-        proj=self.projection(s)
-        Upsilon_LL=proj[:-2,:-2]
-        # Upsilon_LR=proj[:-2,-2:]
-        Upsilon_RR=proj[-2:,-2:]
-        Upsilon_RL=proj[-2:,:-2]
-        zero=np.zeros((self.L*4-2,2))
-        zero0=np.zeros((2,2))
+        proj=self.projection(s,type=type)
+        Upsilon_LL=proj[:-len(ix),:-len(ix)]
+        # Upsilon_LR=proj[:-len(ix),-len(ix):]
+        Upsilon_RR=proj[-len(ix):,-len(ix):]
+        Upsilon_RL=proj[-len(ix):,:-len(ix)]
+        zero=np.zeros((self.L*4-len(ix),len(ix)))
+        zero0=np.zeros((len(ix),len(ix)))
         mat1=np.block([[Gamma_LL,zero],[zero.T,Upsilon_RR]])
         mat2=np.block([[Gamma_LR,zero],[zero0,Upsilon_RL]])
-        mat3=np.block([[Gamma_RR,np.eye(2)],[-np.eye(2),Upsilon_LL]])
+        mat3=np.block([[Gamma_RR,np.eye(len(ix))],[-np.eye(len(ix)),Upsilon_LL]])
         self.mat2=mat2
         if np.count_nonzero(mat2):
             Psi=mat1+mat2@(la.solve(mat3,mat2.T))
@@ -196,16 +200,70 @@ class Params:
         else:
             Psi=mat1
         
-        Psi[[j,-1]]=Psi[[-1,j]]
-        Psi[:,[j,-1]]=Psi[:,[-1,j]]
+        for i_ind,i in enumerate(ix):
+            Psi[[i,-(len(ix)-i_ind)]]=Psi[[-(len(ix)-i_ind),i]]
+            Psi[:,[i,-(len(ix)-i_ind)]]=Psi[:,[-(len(ix)-i_ind),i]]
+        # Psi[[j,-1]]=Psi[[-1,j]]
+        # Psi[:,[j,-1]]=Psi[:,[-1,j]]
 
-        Psi[[i,-2]]=Psi[[-2,i]]
-        Psi[:,[i,-2]]=Psi[:,[-2,i]]
+        # Psi[[i,-2]]=Psi[[-2,i]]
+        # Psi[:,[i,-2]]=Psi[:,[-2,i]]
         
         Psi=(Psi-Psi.T)/2   # Anti-symmetrize
         self.C_m_history.append(Psi)
         self.s_history.append(s)
         self.i_history.append(i)
+
+    # def measure(self,s,i,j):
+    #     if not hasattr(self,'C_m'):
+    #         self.covariance_matrix()
+    #     if not hasattr(self,'s_history'):
+    #         self.s_history=[]
+    #     if not hasattr(self,'i_history'):
+    #         self.i_history=[]
+                
+    #     m=self.C_m_history[-1].copy()
+    #     # i<-> -2
+    #     m[[i,-2]]=m[[-2,i]]
+    #     m[:,[i,-2]]=m[:,[-2,i]]
+    #     # j<->-1
+    #     m[[j,-1]]=m[[-1,j]]
+    #     m[:,[j,-1]]=m[:,[-1,j]]
+
+    #     self.m=m
+
+    #     Gamma_LL=m[:-2,:-2]
+    #     Gamma_LR=m[:-2,-2:]
+    #     Gamma_RR=m[-2:,-2:]       
+
+    #     proj=self.projection(s)
+    #     Upsilon_LL=proj[:-2,:-2]
+    #     # Upsilon_LR=proj[:-2,-2:]
+    #     Upsilon_RR=proj[-2:,-2:]
+    #     Upsilon_RL=proj[-2:,:-2]
+    #     zero=np.zeros((self.L*4-2,2))
+    #     zero0=np.zeros((2,2))
+    #     mat1=np.block([[Gamma_LL,zero],[zero.T,Upsilon_RR]])
+    #     mat2=np.block([[Gamma_LR,zero],[zero0,Upsilon_RL]])
+    #     mat3=np.block([[Gamma_RR,np.eye(2)],[-np.eye(2),Upsilon_LL]])
+    #     self.mat2=mat2
+    #     if np.count_nonzero(mat2):
+    #         Psi=mat1+mat2@(la.solve(mat3,mat2.T))
+    #         # Psi=mat1+mat2@(la.lstsq(mat3,mat2.T)[0])
+    #         assert np.abs(np.trace(Psi))<1e-5, "Not trace zero {:e}".format(np.trace(Psi))
+    #     else:
+    #         Psi=mat1
+        
+    #     Psi[[j,-1]]=Psi[[-1,j]]
+    #     Psi[:,[j,-1]]=Psi[:,[-1,j]]
+
+    #     Psi[[i,-2]]=Psi[[-2,i]]
+    #     Psi[:,[i,-2]]=Psi[:,[-2,i]]
+        
+    #     Psi=(Psi-Psi.T)/2   # Anti-symmetrize
+    #     self.C_m_history.append(Psi)
+    #     self.s_history.append(s)
+    #     self.i_history.append(i)
 
     def measure_all(self,s_prob,proj_range=None):
         '''
@@ -223,25 +281,44 @@ class Params:
             self.measure(s,i,i+1)
         return self
 
-    def measure_all_Born(self,proj_range=None,order=None):
-            if proj_range is None:
-                proj_range=np.arange(int(self.L),self.L*2,2)
-            if order=='e2':
-                proj_range=np.concatenate((proj_range[::2],proj_range[1::2]))
-            if order=='e3':
-                proj_range=np.concatenate((proj_range[::3],proj_range[1::3],proj_range[2::3]))
-            if order=='e4':
-                proj_range=np.concatenate((proj_range[::4],proj_range[1::4],proj_range[2::4]+proj_range[3::4]))
-            # self.P_0_list=[]
-            self.covariance_matrix()
+    def measure_all_Born(self,proj_range=None,order=None,type='onsite'):
+        if proj_range is None:
+            if type=='onsite':
+                proj_range=np.arange(self.L,self.L*2,2)
+            if type=='link':
+                proj_range=np.arange(self.L,self.L*2,4)
+
+        if order=='e2':
+            proj_range=np.concatenate((proj_range[::2],proj_range[1::2]))
+        if order=='e3':
+            proj_range=np.concatenate((proj_range[::3],proj_range[1::3],proj_range[2::3]))
+        if order=='e4':
+            proj_range=np.concatenate((proj_range[::4],proj_range[1::4],proj_range[2::4]+proj_range[3::4]))
+        # self.P_0_list=[]
+        self.covariance_matrix()
+        if type=='onsite':
             for i in proj_range:
                 P_0=(self.C_m_history[-1][i,i+1]+1)/2
                 # self.P_0_list.append(P_0)
                 if np.random.rand() < P_0:                
-                    self.measure(0,i,i+1)
+                    self.measure(0,[i,i+1])
                 else:
-                    self.measure(1,i,i+1)
+                    self.measure(1,[i,i+1])
             return self
+        if type=='link':
+            for i in proj_range:
+                Gamma=self.C_m_history[-1][i:i+4,i:i+4]
+                P={}
+                P['o+']=(1+Gamma[1,2])/2*(1-Gamma[0,3])/2
+                P['o-']=(1-Gamma[1,2])/2*(1+Gamma[0,3])/2
+                P['e+']=(1+Gamma[1,2])/2*(1+Gamma[0,3])/2
+                P['e-']=(1-Gamma[1,2])/2*(1-Gamma[0,3])/2
+                # print((P.values()))
+                s=np.random.choice(['o+','o-','e+','e-'],p=[P['o+'],P['o-'],P['e+'],P['e-']])
+                self.measure(s,[i,i+1,i+2,i+3],type='link')
+            return self
+
+        raise ValueError("type '{}' is not defined".format(type))
 
     def log_neg(self,subregionA,subregionB,Gamma=None):
         assert np.intersect1d(subregionA,subregionB).size==0 , "Subregion A and B overlap"
