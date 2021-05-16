@@ -349,6 +349,6 @@ class Params:
         return np.real(eA+sA)
 
 def cross_ratio(x,L):
-        xx=lambda i,j: (np.sin(np.pi/(L)*np.abs(x[i]-x[j])))
-        eta=(xx(0,1)*xx(2,3))/(xx(0,2)*xx(1,3))
-        return eta
+    xx=lambda i,j: (np.sin(np.pi/(L)*np.abs(x[i]-x[j])))
+    eta=(xx(0,1)*xx(2,3))/(xx(0,2)*xx(1,3))
+    return eta
