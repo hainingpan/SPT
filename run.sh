@@ -1,6 +1,3 @@
 #!/bin/bash
-# mpirun -np 4 python -m mpi4py.futures MI_position.py --es 1000
-# mpirun -np 4 python -m mpi4py.futures MI_position.py --es 2000
-# mpirun -np 4 python -m mpi4py.futures MI_position.py --es 3000
-# mpirun -np 4 python -m mpi4py.futures MI_position.py --es 5000
-mpirun -np 4 python -m mpi4py.futures MI_position.py --es 20000
+mpirun -n 4 python MI_LN_SSH.py --es 1000 --pt 100 --type=onsite --timing=True
+mpirun -n 4 python MI_LN_SSH.py --es 1000 --pt 100 --type=link --timing=True
