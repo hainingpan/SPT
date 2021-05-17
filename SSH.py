@@ -18,8 +18,8 @@ class Params:
         self.bc=bc
         band=np.vstack([np.ones(L)*self.v,np.ones(L)*self.w]).flatten('F')
         Ham=np.diag(band[:-1],1)
-        Ham[0,2*L-1]=self.w*bc
-        self.Hamiltonian=Ham+Ham.T
+        Ham[0,-1]=self.w*bc
+        self.Hamiltonian=-(Ham+Ham.T)
     
     def bandstructure(self):
         val,vec=nla.eigh(self.Hamiltonian)
@@ -36,12 +36,13 @@ class Params:
 
     def correlation_matrix(self,E_F=0):
         '''
-        G_{ij}=<f_i f_j^\dagger>
+        G_{ij}=<f_i^\dagger f_j>
         '''
         if not (hasattr(self,'val') and hasattr(self,'vec')):
             self.bandstructure()
         occupancy_mat=np.matlib.repmat(self.fermi_dist(self.val,E_F),self.vec.shape[0],1)
-        self.C_f=(occupancy_mat*self.vec)@self.vec.T.conj()
+        self.C_f=np.real((occupancy_mat*self.vec)@self.vec.T.conj())
+
     
     def covariance_matrix(self,E_F=0):
         '''
@@ -278,7 +279,7 @@ class Params:
                 s=0
             else:           
                 s=s_prob<np.random.rand()
-            self.measure(s,i,i+1)
+            self.measure(s,[i,i+1])
         return self
 
     def measure_all_Born(self,proj_range=None,order=None,type='onsite'):

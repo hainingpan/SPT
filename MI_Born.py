@@ -54,14 +54,14 @@ if __name__=="__main__":
     s_history_dis_dict={}
     # T_list=[0]
     T_list=np.linspace(0,6e-1,50)
-    # T_list=(0,0.01,0.02,0.05,0.1,0.2,0.3)
+    T_list=(0,0.01,0.02,0.05,0.1,0.2,0.3)
     for T in T_list:
         st=time.time()
         delta_dict[T],mutual_info_dis_dict[T],log_neg_dis_dict[T],s_history_dis_dict[T]=mutual_info_run_MPI(T,args.es)
         print("Time elapsed for {:.4f}: {:.4f}".format(T,time.time()-st))
 
 
-    with open('MI_Born_En{:d}_T_map.pickle'.format(args.es),'wb') as f:
+    with open('MI_Born_En{:d}_T.pickle'.format(args.es),'wb') as f:
         pickle.dump([delta_dict,mutual_info_dis_dict,log_neg_dis_dict,s_history_dis_dict],f)
     
    
