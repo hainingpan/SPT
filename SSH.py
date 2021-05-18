@@ -2,7 +2,8 @@ import numpy as np
 import scipy.linalg as la
 import numpy.linalg as nla
 import numpy.matlib
-import itertools
+from scipy import integrate
+
 
 class Params:
     def __init__(self,
@@ -12,14 +13,15 @@ class Params:
     bc=-1):
         self.L=L
         self.delta=delta
-        self.v=1-delta
-        self.w=1+delta
         self.T=T
-        self.bc=bc
-        band=np.vstack([np.ones(L)*self.v,np.ones(L)*self.w]).flatten('F')
-        Ham=np.diag(band[:-1],1)
-        Ham[0,-1]=self.w*bc
-        self.Hamiltonian=-(Ham+Ham.T)
+        if L<np.inf:
+            self.v=1-delta
+            self.w=1+delta
+            self.bc=bc
+            band=np.vstack([np.ones(L)*self.v,np.ones(L)*self.w]).flatten('F')
+            Ham=np.diag(band[:-1],1)
+            Ham[0,-1]=self.w*bc
+            self.Hamiltonian=-(Ham+Ham.T)
     
     def bandstructure(self):
         val,vec=nla.eigh(self.Hamiltonian)
@@ -27,12 +29,53 @@ class Params:
         self.val=val[sortindex]
         self.vec=vec[:,sortindex]    
 
+    def E_k(self,k,branch):
+        '''
+        branch = +/-1
+        '''
+        return branch*np.sqrt(2*(1+self.delta**2)+2*(1-self.delta**2)*np.cos(k))
+
+        
+    def fermi_dist_k(self,k,branch,E_F=0):
+        if self.T==0:
+            return np.heaviside(E_F-self.E_k(k,branch),0)
+        else:
+            return 1/(1+np.exp((self.E_k(k,branch)-E_F)/self.T))
+
 
     def fermi_dist(self,energy,E_F):      
         if self.T==0:
             return np.heaviside(E_F-energy,0)
         else:
             return 1/(1+np.exp((energy-E_F)/self.T)) 
+
+
+    def correlation_matrix_inf(self,dmax):
+        '''
+        dmax: the maximal distance (in terms of unit cell) 
+        '''
+        assert self.L==np.inf, "Wire length should be inf"
+        cov_mat=[]
+        dmax+=1
+        for d in range(dmax):
+            integrand_11=lambda k:np.exp(1j*k*d)*(self.fermi_dist_k(k,1)+self.fermi_dist_k(k,-1))
+            integrand_12=lambda k:np.exp(1j*k*d)*(-((1-self.delta)+(1+self.delta)*np.exp(-1j*k))/np.sqrt(2*(1+self.delta**2)+2*(1-self.delta**2)*np.cos(k)))*(self.fermi_dist_k(k,1)-self.fermi_dist_k(k,-1))
+            integrand_21=lambda k:np.exp(1j*k*d)*(-((1-self.delta)+(1+self.delta)*np.exp(1j*k))/np.sqrt(2*(1+self.delta**2)+2*(1-self.delta**2)*np.cos(k)))*(self.fermi_dist_k(k,1)-self.fermi_dist_k(k,-1))
+            A_11=integrate.quad(integrand_11,-np.pi,np.pi)
+            A_12=integrate.quad(integrand_12,-np.pi,np.pi)
+            A_21=integrate.quad(integrand_21,-np.pi,np.pi)
+            cov_mat.append(np.array([[A_11[0],A_12[0]],[A_21[0],A_11[0]]])/(4*np.pi))
+
+        Gamma=np.zeros((2*dmax,2*dmax))
+        for i in range(dmax):
+            for j in range(i):
+                Gamma[2*i:2*i+2,2*j:2*j+2]=cov_mat[i-j]
+        Gamma=Gamma+Gamma.T
+        for i in range(dmax):
+            Gamma[2*i:2*i+2,2*i:2*i+2]=cov_mat[0]
+
+        self.C_f=Gamma
+
 
     def correlation_matrix(self,E_F=0):
         '''

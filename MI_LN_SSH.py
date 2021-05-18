@@ -14,6 +14,7 @@ def run(es,pt,L,Bp,type):
     eta_Born_list=[]
     MI_Born_list=[]
     LN_Born_list=[]
+    step=2 if type=='onsite' else 4
     for _ in range(pt):
         MI_ensemble_list=[]
         LN_ensemble_list=[]
@@ -21,9 +22,9 @@ def run(es,pt,L,Bp,type):
         x=[0]+x
         subregionA=np.arange(x[0],x[1])
         subregionB=np.arange(x[2],x[3])
-        subregionAp=np.arange(x[1],x[2],2)
+        subregionAp=np.arange(x[1],x[2],step)
         if Bp:
-            subregionBp=np.concatenate([np.arange(x[3],2*L,2),np.arange(0,x[0],2)])
+            subregionBp=np.concatenate([np.arange(x[3],2*L,step),np.arange(0,x[0],step)])
         eta=cross_ratio(x,4*L)
         for _ in range(es):
             if Bp:
