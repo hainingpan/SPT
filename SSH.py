@@ -10,6 +10,7 @@ class Params:
     L=100,
     delta=0,
     T=0,
+    dmax=100,
     bc=-1):
         self.L=L
         self.delta=delta
@@ -22,6 +23,8 @@ class Params:
             Ham=np.diag(band[:-1],1)
             Ham[0,-1]=self.w*bc
             self.Hamiltonian=-(Ham+Ham.T)
+        else:
+            self.dmax=dmax
     
     def bandstructure(self):
         val,vec=nla.eigh(self.Hamiltonian)
@@ -50,30 +53,67 @@ class Params:
             return 1/(1+np.exp((energy-E_F)/self.T)) 
 
 
-    def correlation_matrix_inf(self,dmax):
+    def correlation_matrix_inf(self):
         '''
-        dmax: the maximal distance (in terms of unit cell) 
+        self.dmax: the maximal distance (in terms of unit cell) 
         '''
         assert self.L==np.inf, "Wire length should be inf"
         cov_mat=[]
-        dmax+=1
-        for d in range(dmax):
-            integrand_11=lambda k:np.exp(1j*k*d)*(self.fermi_dist_k(k,1)+self.fermi_dist_k(k,-1))
-            integrand_12=lambda k:np.exp(1j*k*d)*(-((1-self.delta)+(1+self.delta)*np.exp(-1j*k))/np.sqrt(2*(1+self.delta**2)+2*(1-self.delta**2)*np.cos(k)))*(self.fermi_dist_k(k,1)-self.fermi_dist_k(k,-1))
-            integrand_21=lambda k:np.exp(1j*k*d)*(-((1-self.delta)+(1+self.delta)*np.exp(1j*k))/np.sqrt(2*(1+self.delta**2)+2*(1-self.delta**2)*np.cos(k)))*(self.fermi_dist_k(k,1)-self.fermi_dist_k(k,-1))
-            A_11=integrate.quad(integrand_11,-np.pi,np.pi)
-            A_12=integrate.quad(integrand_12,-np.pi,np.pi)
-            A_21=integrate.quad(integrand_21,-np.pi,np.pi)
-            cov_mat.append(np.array([[A_11[0],A_12[0]],[A_21[0],A_11[0]]])/(4*np.pi))
+        for d in range(self.dmax):
+            integrand_11=lambda k:2*np.cos(k*d)*(self.fermi_dist_k(k,1)+self.fermi_dist_k(k,-1))
+            if self.T>0:
+                integrand_11=lambda k:2*np.cos(k*d)*(self.fermi_dist_k(k,1)+self.fermi_dist_k(k,-1))
+                integrand_12=lambda k:-np.sqrt(2)*((1-self.delta)*np.cos(k*d)+(1+self.delta)*np.cos(k*(d-1)))/np.sqrt((1+self.delta**2)+(1-self.delta**2)*np.cos(k))*(self.fermi_dist_k(k,1)-self.fermi_dist_k(k,-1))
+                integrand_21=lambda k:-np.sqrt(2)*((1-self.delta)*np.cos(k*d)+(1+self.delta)*np.cos(k*(d+1)))/np.sqrt((1+self.delta**2)+(1-self.delta**2)*np.cos(k))*(self.fermi_dist_k(k,1)-self.fermi_dist_k(k,-1))
+            else:
+                # integrand_11=lambda k:2*np.cos(k*d)
+                integrand_12=lambda k:np.sqrt(2)*((1-self.delta)*np.cos(k*d)+(1+self.delta)*np.cos(k*(d-1)))/np.sqrt((1+self.delta**2)+(1-self.delta**2)*np.cos(k))
+                integrand_21=lambda k:np.sqrt(2)*((1-self.delta)*np.cos(k*d)+(1+self.delta)*np.cos(k*(d+1)))/np.sqrt((1+self.delta**2)+(1-self.delta**2)*np.cos(k))
+            A_11=2*np.pi if d==0 else 0
+            A_12=integrate.quad(integrand_12,0,np.pi)
+            A_21=integrate.quad(integrand_21,0,np.pi)
+            cov_mat.append(np.array([[A_11,A_12[0]],[A_21[0],A_11]])/(4*np.pi))
 
-        Gamma=np.zeros((2*dmax,2*dmax))
-        for i in range(dmax):
+        Gamma=np.zeros((2*self.dmax,2*self.dmax))
+        for i in range(self.dmax):
             for j in range(i):
                 Gamma[2*i:2*i+2,2*j:2*j+2]=cov_mat[i-j]
         Gamma=Gamma+Gamma.T
-        for i in range(dmax):
+        for i in range(self.dmax):
             Gamma[2*i:2*i+2,2*i:2*i+2]=cov_mat[0]
 
+        self.C_f=Gamma
+
+    def correlation_matrix_inf_fft(self):
+        '''
+        self.dmax: the maximal distance (in terms of unit cell) 
+        Directly call fft to evaluate the integral
+        '''
+        assert self.L==np.inf, "Wire length should be inf"
+        cov_mat=[]
+        d=max(self.dmax,512)
+        if self.T>0:
+            pass    #to be filled
+        else:
+            integrand_12=lambda k: ((1-self.delta) + (1+self.delta)*np.cos(k) - 1j*(1+self.delta)*np.sin(k))/np.sqrt((1-self.delta + (1+self.delta)* np.cos(k))**2+((1+self.delta)*np.sin(k))**2)
+            integrand_21=lambda k: ((1-self.delta) + (1+self.delta)*np.cos(k) + 1j*(1+self.delta)*np.sin(k))/np.sqrt((1-self.delta + (1+self.delta)* np.cos(k))**2+((1+self.delta)*np.sin(k))**2)
+            
+            A_11=np.array([0.5]+[0]*(d-1))
+            A_12=np.fft.ifft(integrand_12(np.arange(0,2*np.pi,2*np.pi/d)))/2
+            A_21=np.fft.ifft(integrand_21(np.arange(0,2*np.pi,2*np.pi/d)))/2
+            A_12=np.sign(np.real(A_12))*np.abs(A_12)
+            A_21=np.sign(np.real(A_21))*np.abs(A_21)
+
+        mat=np.array([[A_11,A_12],[A_21,A_11]])
+        Gamma=np.zeros((2*self.dmax,2*self.dmax))
+        for i in range(self.dmax):
+            for j in range(i):
+                # mat=np.array([[A_11[i-j],A_12[i-j]],[A_21[i-j],A_11[i-j]]])
+                Gamma[2*i:2*i+2,2*j:2*j+2]=mat[:,:,i-j]
+        Gamma=Gamma+Gamma.T
+        for i in range(self.dmax):
+            # mat=np.array([[A_11[0],A_12[0]],[A_21[0],A_11[0]]])
+            Gamma[2*i:2*i+2,2*i:2*i+2]=mat[:,:,0]
         self.C_f=Gamma
 
 
@@ -93,7 +133,10 @@ class Params:
         Maybe differs by a minus sign
         '''
         if not hasattr(self,'C_f'):
-            self.correlation_matrix()
+            if self.L<np.inf:
+                self.correlation_matrix()
+            else:
+                self.correlation_matrix_inf()
         G=self.C_f
         Gamma_11=1j*(G-G.T)
         Gamma_21=-(np.eye(2*self.L)-G-G.T)
@@ -112,7 +155,10 @@ class Params:
 
     def c_subregion_f(self,subregion):
         if not hasattr(self,'C'):
-            self.correlation_matrix()
+            if self.L<np.inf:
+                self.correlation_matrix()
+            else:
+                self.correlation_matrix_inf()
         try:
             subregion=np.array(subregion)
         except:
@@ -128,7 +174,10 @@ class Params:
 
     def c_subregion_m(self,subregion,Gamma=None):
         if not hasattr(self,'C_m'):
-            self.covariance_matrix()
+            if self.L<np.inf:
+                self.correlation_matrix()
+            else:
+                self.correlation_matrix_inf()
         if Gamma is None:
             Gamma=self.C_m_history[-1]
         try:
@@ -167,10 +216,7 @@ class Params:
             occupancy number: s= 0,1 
             (-1)^0 even parity, (-1)^1 odd parity
         For type:'link'
-            (o,+):
-            (o,-):
-            (e,+):
-            (e,-):
+            (o,+)|(o,-)|(e,+)|(e,-)
         '''
         if type=='onsite':
             assert (s==0 or s==1),"s={} is either 0 or 1".format(s)
@@ -213,12 +259,6 @@ class Params:
         for i_ind,i in enumerate(ix):
             m[[i,-(len(ix)-i_ind)]]=m[[-(len(ix)-i_ind),i]]
             m[:,[i,-(len(ix)-i_ind)]]=m[:,[-(len(ix)-i_ind),i]]
-        # # i<-> -2
-        # m[[i,-2]]=m[[-2,i]]
-        # m[:,[i,-2]]=m[:,[-2,i]]
-        # # j<->-1
-        # m[[j,-1]]=m[[-1,j]]
-        # m[:,[j,-1]]=m[:,[-1,j]]
 
         self.m=m
 
@@ -228,7 +268,6 @@ class Params:
 
         proj=self.projection(s,type=type)
         Upsilon_LL=proj[:-len(ix),:-len(ix)]
-        # Upsilon_LR=proj[:-len(ix),-len(ix):]
         Upsilon_RR=proj[-len(ix):,-len(ix):]
         Upsilon_RL=proj[-len(ix):,:-len(ix)]
         zero=np.zeros((self.L*4-len(ix),len(ix)))
@@ -247,68 +286,13 @@ class Params:
         for i_ind,i in enumerate(ix):
             Psi[[i,-(len(ix)-i_ind)]]=Psi[[-(len(ix)-i_ind),i]]
             Psi[:,[i,-(len(ix)-i_ind)]]=Psi[:,[-(len(ix)-i_ind),i]]
-        # Psi[[j,-1]]=Psi[[-1,j]]
-        # Psi[:,[j,-1]]=Psi[:,[-1,j]]
-
-        # Psi[[i,-2]]=Psi[[-2,i]]
-        # Psi[:,[i,-2]]=Psi[:,[-2,i]]
         
         Psi=(Psi-Psi.T)/2   # Anti-symmetrize
         self.C_m_history.append(Psi)
         self.s_history.append(s)
         self.i_history.append(i)
 
-    # def measure(self,s,i,j):
-    #     if not hasattr(self,'C_m'):
-    #         self.covariance_matrix()
-    #     if not hasattr(self,'s_history'):
-    #         self.s_history=[]
-    #     if not hasattr(self,'i_history'):
-    #         self.i_history=[]
-                
-    #     m=self.C_m_history[-1].copy()
-    #     # i<-> -2
-    #     m[[i,-2]]=m[[-2,i]]
-    #     m[:,[i,-2]]=m[:,[-2,i]]
-    #     # j<->-1
-    #     m[[j,-1]]=m[[-1,j]]
-    #     m[:,[j,-1]]=m[:,[-1,j]]
-
-    #     self.m=m
-
-    #     Gamma_LL=m[:-2,:-2]
-    #     Gamma_LR=m[:-2,-2:]
-    #     Gamma_RR=m[-2:,-2:]       
-
-    #     proj=self.projection(s)
-    #     Upsilon_LL=proj[:-2,:-2]
-    #     # Upsilon_LR=proj[:-2,-2:]
-    #     Upsilon_RR=proj[-2:,-2:]
-    #     Upsilon_RL=proj[-2:,:-2]
-    #     zero=np.zeros((self.L*4-2,2))
-    #     zero0=np.zeros((2,2))
-    #     mat1=np.block([[Gamma_LL,zero],[zero.T,Upsilon_RR]])
-    #     mat2=np.block([[Gamma_LR,zero],[zero0,Upsilon_RL]])
-    #     mat3=np.block([[Gamma_RR,np.eye(2)],[-np.eye(2),Upsilon_LL]])
-    #     self.mat2=mat2
-    #     if np.count_nonzero(mat2):
-    #         Psi=mat1+mat2@(la.solve(mat3,mat2.T))
-    #         # Psi=mat1+mat2@(la.lstsq(mat3,mat2.T)[0])
-    #         assert np.abs(np.trace(Psi))<1e-5, "Not trace zero {:e}".format(np.trace(Psi))
-    #     else:
-    #         Psi=mat1
-        
-    #     Psi[[j,-1]]=Psi[[-1,j]]
-    #     Psi[:,[j,-1]]=Psi[:,[-1,j]]
-
-    #     Psi[[i,-2]]=Psi[[-2,i]]
-    #     Psi[:,[i,-2]]=Psi[:,[-2,i]]
-        
-    #     Psi=(Psi-Psi.T)/2   # Anti-symmetrize
-    #     self.C_m_history.append(Psi)
-    #     self.s_history.append(s)
-    #     self.i_history.append(i)
-
+ 
     def measure_all(self,s_prob,proj_range=None):
         '''
         The probability of s=0 (unoccupied)
@@ -393,6 +377,9 @@ class Params:
         return np.real(eA+sA)
 
 def cross_ratio(x,L):
-    xx=lambda i,j: (np.sin(np.pi/(L)*np.abs(x[i]-x[j])))
+    if L<np.inf:
+        xx=lambda i,j: (np.sin(np.pi/(L)*np.abs(x[i]-x[j])))
+    else:
+        xx=lambda i,j: np.abs(x[i]-x[j])
     eta=(xx(0,1)*xx(2,3))/(xx(0,2)*xx(1,3))
     return eta
