@@ -63,6 +63,7 @@ if __name__=="__main__":
     eta_inf_Born_Ap_list=[]
     MI_inf_Born_Ap_list=[]
     LN_inf_Born_Ap_list=[]
+    step=2 if type=='onsite' else 4
     params_init=Params(delta=0,L=L,bc=-1,dmax=args.max+32)
     for d in dist_list:
         MI_ensemble_list=[]
@@ -70,7 +71,7 @@ if __name__=="__main__":
         x=np.array([0,16,16+d,32+d])*4
         subregionA=np.arange(x[0],x[1])
         subregionB=np.arange(x[2],x[3])
-        subregionAp=np.arange(x[1],x[2],4)
+        subregionAp=np.arange(x[1],x[2],step)
         eta=cross_ratio(x,L)
         executor=MPIPoolExecutor()
         inputs=[(params_init,subregionA,subregionB,subregionAp,args.type) for _ in range(args.es)]
