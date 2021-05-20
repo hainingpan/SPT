@@ -63,7 +63,8 @@ if __name__=="__main__":
     eta_inf_Born_Ap_list=[]
     MI_inf_Born_Ap_list=[]
     LN_inf_Born_Ap_list=[]
-    step=2 if type=='onsite' else 4
+    step=2 if args.type=='onsite' else 4
+    print(step)
     params_init=Params(delta=0,L=L,bc=-1,dmax=args.max+32)
     for d in dist_list:
         MI_ensemble_list=[]
