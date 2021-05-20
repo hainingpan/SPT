@@ -84,14 +84,14 @@ class Params:
 
         self.C_f=Gamma
 
-    def correlation_matrix_inf_fft(self):
+    def correlation_matrix_inf_fft(self,threshold=1024):
         '''
         self.dmax: the maximal distance (in terms of unit cell) 
         Directly call fft to evaluate the integral
         '''
         assert self.L==np.inf, "Wire length should be inf"
         cov_mat=[]
-        d=max(self.dmax,512)
+        d=max(self.dmax,threshold)
         if self.T>0:
             pass    #to be filled
         else:
@@ -108,11 +108,9 @@ class Params:
         Gamma=np.zeros((2*self.dmax,2*self.dmax))
         for i in range(self.dmax):
             for j in range(i):
-                # mat=np.array([[A_11[i-j],A_12[i-j]],[A_21[i-j],A_11[i-j]]])
                 Gamma[2*i:2*i+2,2*j:2*j+2]=mat[:,:,i-j]
         Gamma=Gamma+Gamma.T
         for i in range(self.dmax):
-            # mat=np.array([[A_11[0],A_12[0]],[A_21[0],A_11[0]]])
             Gamma[2*i:2*i+2,2*i:2*i+2]=mat[:,:,0]
         self.C_f=Gamma
 
@@ -136,15 +134,15 @@ class Params:
             if self.L<np.inf:
                 self.correlation_matrix()
             else:
-                self.correlation_matrix_inf()
+                self.correlation_matrix_inf_fft()
         G=self.C_f
         Gamma_11=1j*(G-G.T)
-        Gamma_21=-(np.eye(2*self.L)-G-G.T)
+        Gamma_21=-(np.eye(G.shape[0])-G-G.T)
         Gamma_12=-Gamma_21.T
         Gamma_22=-1j*(G.T-G)
-        Gamma=np.zeros((4*self.L,4*self.L),dtype=complex)
-        even=np.arange(4*self.L)[::2]
-        odd=np.arange(4*self.L)[1::2]
+        Gamma=np.zeros((2*G.shape[0],2*G.shape[0]),dtype=complex)
+        even=np.arange(2*G.shape[0])[::2]
+        odd=np.arange(2*G.shape[0])[1::2]
         Gamma[np.ix_(even,even)]=Gamma_11
         Gamma[np.ix_(even,odd)]=Gamma_12
         Gamma[np.ix_(odd,even)]=Gamma_21
@@ -155,10 +153,7 @@ class Params:
 
     def c_subregion_f(self,subregion):
         if not hasattr(self,'C'):
-            if self.L<np.inf:
-                self.correlation_matrix()
-            else:
-                self.correlation_matrix_inf()
+            self.covariance_matrix()
         try:
             subregion=np.array(subregion)
         except:
@@ -174,10 +169,7 @@ class Params:
 
     def c_subregion_m(self,subregion,Gamma=None):
         if not hasattr(self,'C_m'):
-            if self.L<np.inf:
-                self.correlation_matrix()
-            else:
-                self.correlation_matrix_inf()
+            self.covariance_matrix()
         if Gamma is None:
             Gamma=self.C_m_history[-1]
         try:
@@ -270,7 +262,7 @@ class Params:
         Upsilon_LL=proj[:-len(ix),:-len(ix)]
         Upsilon_RR=proj[-len(ix):,-len(ix):]
         Upsilon_RL=proj[-len(ix):,:-len(ix)]
-        zero=np.zeros((self.L*4-len(ix),len(ix)))
+        zero=np.zeros((m.shape[0]-len(ix),len(ix)))
         zero0=np.zeros((len(ix),len(ix)))
         mat1=np.block([[Gamma_LL,zero],[zero.T,Upsilon_RR]])
         mat2=np.block([[Gamma_LR,zero],[zero0,Upsilon_RL]])
@@ -375,6 +367,7 @@ class Params:
         chi=nla.eigvalsh(1j*Gamma[np.ix_(subregionAB,subregionAB)])
         sA=np.sum(np.log(((1+chi)/2)**2+((1-chi)/2)**2))/4
         return np.real(eA+sA)
+
 
 def cross_ratio(x,L):
     if L<np.inf:
