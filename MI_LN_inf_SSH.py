@@ -44,8 +44,9 @@ if __name__=="__main__":
         subregionB=np.arange(x[2],x[3])
         subregionAp=np.arange(x[1],x[2],step)
         # print(subregionAp)
-        measured=args.density_numerator*subregionAp.shape[0]//args.density_denominator
+        # measured=args.density_numerator*subregionAp.shape[0]//args.density_denominator
         # print(measured)
+        measured=subregionAp.shape[0]-1
         subregionAp_list=[sorted(np.random.choice(subregionAp,measured,replace=False)) for _ in range(args.es)]
         # print(subregionAp_list)
         eta=cross_ratio(x,L)
@@ -72,5 +73,3 @@ if __name__=="__main__":
 
     if args.timing:
             print('Elapsed:{:.1f}'.format(time.time()-st))
-
-        
