@@ -35,7 +35,7 @@ if __name__=="__main__":
     MI_inf_Born_Ap_list=[]
     LN_inf_Born_Ap_list=[]
     step=2 if args.type=='onsite' else 4
-    params_init=Params(delta=0,L=L,bc=-1,dmax=args.max+32)
+    params_init=Params(delta=0,L=L,bc=-1,dmax=args.max+32,history=False)
     for d in dist_list:
         MI_ensemble_list=[]
         LN_ensemble_list=[]
@@ -44,9 +44,8 @@ if __name__=="__main__":
         subregionB=np.arange(x[2],x[3])
         subregionAp=np.arange(x[1],x[2],step)
         # print(subregionAp)
-        # measured=args.density_numerator*subregionAp.shape[0]//args.density_denominator
+        measured=args.density_numerator*subregionAp.shape[0]//args.density_denominator
         # print(measured)
-        measured=subregionAp.shape[0]-1
         subregionAp_list=[sorted(np.random.choice(subregionAp,measured,replace=False)) for _ in range(args.es)]
         # print(subregionAp_list)
         eta=cross_ratio(x,L)

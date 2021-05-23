@@ -11,10 +11,12 @@ class Params:
     delta=0,
     T=0,
     dmax=100,
-    bc=-1):
+    bc=-1,
+    history=True):
         self.L=L
         self.delta=delta
         self.T=T
+        self.history=history
         if L<np.inf:
             self.v=1-delta
             self.w=1+delta
@@ -280,9 +282,14 @@ class Params:
             Psi[:,[i,-(len(ix)-i_ind)]]=Psi[:,[-(len(ix)-i_ind),i]]
         
         Psi=(Psi-Psi.T)/2   # Anti-symmetrize
-        self.C_m_history.append(Psi)
-        self.s_history.append(s)
-        self.i_history.append(i)
+        if self.history:
+            self.C_m_history.append(Psi)
+            self.s_history.append(s)
+            self.i_history.append(i)
+        else:
+            self.C_m_history=[Psi]
+            self.s_history=[s]
+            self.i_history=[i]
 
  
     def measure_all(self,s_prob,proj_range=None):
