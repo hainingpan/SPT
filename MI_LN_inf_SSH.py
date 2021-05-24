@@ -77,7 +77,7 @@ if __name__=="__main__":
     MI_inf_Born_Ap_list=np.array(MI_inf_Born_Ap_list)
     LN_inf_Born_Ap_list=np.array(LN_inf_Born_Ap_list)
 
-    with open('MI_LN_SSH_inf_Born_En{:d}_{:s}_{:s}({:d},{:d})_dist({:d},{:d}).pickle'.format(args.es,args.type,args.prob*('Prob')+(1-args.prob)*('Den'),args.density_numerator,args.density_denominator,args.min,args.max),'wb') as f:
+    with open('MI_LN_SSH_inf_Born_En{:d}_{:s}_{:s}({:d},{:d})_dist({:d},{:d}).pickle'.format(args.es,args.type,args.prob*('prob')+(1-args.prob)*('Den'),args.density_numerator,args.density_denominator,args.min,args.max),'wb') as f:
         pickle.dump([dist_list,eta_inf_Born_Ap_list,MI_inf_Born_Ap_list,LN_inf_Born_Ap_list],f)
 
 
