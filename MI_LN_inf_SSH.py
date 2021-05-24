@@ -37,6 +37,8 @@ if __name__=="__main__":
     step=2 if args.type=='onsite' else 4
     params_init=Params(delta=0,L=L,bc=-1,dmax=args.max+32,history=False)
     for d in dist_list:
+        print("d={:d}:".format(d),end='')
+        st=time.time()
         MI_ensemble_list=[]
         LN_ensemble_list=[]
         x=np.array([0,16,16+d,32+d])*4
@@ -61,6 +63,7 @@ if __name__=="__main__":
         eta_inf_Born_Ap_list.append(eta)
         MI_inf_Born_Ap_list.append(MI_ensemble_list)
         LN_inf_Born_Ap_list.append(LN_ensemble_list)
+        print("{:.1f}".format(time.time()-st))
         
     eta_inf_Born_Ap_list=np.array(eta_inf_Born_Ap_list)
     MI_inf_Born_Ap_list=np.array(MI_inf_Born_Ap_list)
