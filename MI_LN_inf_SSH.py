@@ -24,11 +24,13 @@ if __name__=="__main__":
     parser.add_argument('--type',type=str)
     parser.add_argument('--density_numerator',type=int,default=1)
     parser.add_argument('--density_denominator',type=int,default=1)
+    parser.add_argument('--prob',type=bool,default=False)
     args=parser.parse_args()
     if args.timing:
         st=time.time()
     dist_list=np.arange(args.min,args.max)
-    dist_list=dist_list[dist_list%args.density_denominator==0]
+    if not args.prob:
+        dist_list=dist_list[dist_list%args.density_denominator==0]
     # print(dist_list)
     L=np.inf
     eta_inf_Born_Ap_list=[]
@@ -46,9 +48,15 @@ if __name__=="__main__":
         subregionB=np.arange(x[2],x[3])
         subregionAp=np.arange(x[1],x[2],step)
         # print(subregionAp)
-        measured=args.density_numerator*subregionAp.shape[0]//args.density_denominator
+        
         # print(measured)
-        subregionAp_list=[sorted(np.random.choice(subregionAp,measured,replace=False)) for _ in range(args.es)]
+        if args.prob:
+            subregionAp_list=[subregionAp[np.random.rand(subregionAp.shape[0])<args.density_numerator/args.density_denominator] for _ in range(args.es)]
+        else:
+            measured=args.density_numerator*subregionAp.shape[0]//args.density_denominator
+            subregionAp_list=[sorted(np.random.choice(subregionAp,measured,replace=False)) for _ in range(args.es)]
+            
+
         # print(subregionAp_list)
         eta=cross_ratio(x,L)
         executor=MPIPoolExecutor()
@@ -69,7 +77,7 @@ if __name__=="__main__":
     MI_inf_Born_Ap_list=np.array(MI_inf_Born_Ap_list)
     LN_inf_Born_Ap_list=np.array(LN_inf_Born_Ap_list)
 
-    with open('MI_LN_SSH_inf_Born_En{:d}_{:s}_den({:d},{:d})_dist({:d},{:d}).pickle'.format(args.es,args.type,args.density_numerator,args.density_denominator,args.min,args.max),'wb') as f:
+    with open('MI_LN_SSH_inf_Born_En{:d}_{:s}_{:s}({:d},{:d})_dist({:d},{:d}).pickle'.format(args.es,args.type,args.prob*('Prob')+(1-args.prob)*('Den'),args.density_numerator,args.density_denominator,args.min,args.max),'wb') as f:
         pickle.dump([dist_list,eta_inf_Born_Ap_list,MI_inf_Born_Ap_list,LN_inf_Born_Ap_list],f)
 
 
