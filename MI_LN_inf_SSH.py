@@ -25,6 +25,7 @@ if __name__=="__main__":
     parser.add_argument('--density_numerator',type=int,default=1)
     parser.add_argument('--density_denominator',type=int,default=1)
     parser.add_argument('--prob',type=bool,default=False)
+    parser.add_argument('--size',default=16,type=int)
     args=parser.parse_args()
     if args.timing:
         st=time.time()
@@ -37,13 +38,13 @@ if __name__=="__main__":
     MI_inf_Born_Ap_list=[]
     LN_inf_Born_Ap_list=[]
     step=2 if args.type=='onsite' else 4
-    params_init=Params(delta=0,L=L,bc=-1,dmax=args.max+32,history=False)
+    params_init=Params(delta=0,L=L,bc=-1,dmax=args.max+2*args.size,history=False)
     for d in dist_list:
         print("d={:d}:".format(d),end='')
         st=time.time()
         MI_ensemble_list=[]
         LN_ensemble_list=[]
-        x=np.array([0,16,16+d,32+d])*4
+        x=np.array([0,args.size,args.size+d,2*args.size+d])*4
         subregionA=np.arange(x[0],x[1])
         subregionB=np.arange(x[2],x[3])
         subregionAp=np.arange(x[1],x[2],step)
@@ -77,7 +78,7 @@ if __name__=="__main__":
     MI_inf_Born_Ap_list=np.array(MI_inf_Born_Ap_list)
     LN_inf_Born_Ap_list=np.array(LN_inf_Born_Ap_list)
 
-    with open('MI_LN_SSH_inf_Born_En{:d}_{:s}_{:s}({:d},{:d})_dist({:d},{:d}).pickle'.format(args.es,args.type,args.prob*('prob')+(1-args.prob)*('Den'),args.density_numerator,args.density_denominator,args.min,args.max),'wb') as f:
+    with open('MI_LN_SSH_inf_Born_En{:d}_{:s}_{:s}({:d},{:d})_dist({:d},{:d})_size{:d}.pickle'.format(args.es,args.type,args.prob*('prob')+(1-args.prob)*('Den'),args.density_numerator,args.density_denominator,args.min,args.max,args.size),'wb') as f:
         pickle.dump([dist_list,eta_inf_Born_Ap_list,MI_inf_Born_Ap_list,LN_inf_Born_Ap_list],f)
 
 
