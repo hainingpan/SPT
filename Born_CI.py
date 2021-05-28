@@ -32,35 +32,37 @@ if __name__=="__main__":
     LN_Born_list=[]
     MI_no_list=[]
     LN_no_list=[]
+    subregionA=[np.arange(args.Lx//4),np.arange(args.Ly)]
+    subregionB=[np.arange(args.Lx//4)+args.Lx//2,np.arange(args.Ly)]
+    subregionAp=[np.arange(args.Lx//4)+args.Lx//4,np.arange(args.Ly)]
     st0=time.time()
+    executor=MPIPoolExecutor()
+    ensemble_list_pool=[]
     for m_i,m in enumerate(m_list):
-        params_init=Params(m=m,Lx=args.Lx,Ly=args.Ly,bcx=1,bcy=-1,history=False)
-        print("m_i={:d}:".format(m_i),end='')
-        st=time.time()
+        params_init=(Params(m=m,Lx=args.Lx,Ly=args.Ly,bcx=1,bcy=-1,history=False))
         # Born rule
+        inputs=[(params_init,subregionA,subregionB,subregionAp) for _ in range(args.es)]
+        ensemble_list_pool.append(executor.starmap(run,inputs))
+        # no measurement
+        st=time.time()
+        MI_no_list.append(params_init.mutual_information_m(subregionA,subregionB))
+        LN_no_list.append(params_init.log_neg(subregionA,subregionB))
+        # print('m_i={:d} No meas:{:.1f}'.format(m_i,time.time()-st))
+    print('finished no measurement')
+    for m_i,m in enumerate(m_list):
+        print("m_i={:d}:".format(m_i))
+        st=time.time()
         MI_ensemble_list=[]
         LN_ensemble_list=[]
-        subregionA=[np.arange(args.Lx//4),np.arange(args.Ly)]
-        subregionB=[np.arange(args.Lx//4)+args.Lx//2,np.arange(args.Ly)]
-        subregionAp=[np.arange(args.Lx//4)+args.Lx//4,np.arange(args.Ly)]
-        executor=MPIPoolExecutor()
-        inputs=[(params_init,subregionA,subregionB,subregionAp) for _ in range(args.es)]
-        ensemble_list_pool=executor.starmap(run,inputs)
-        executor.shutdown()
-        for result in ensemble_list_pool:
+        for result in ensemble_list_pool[m_i]:
             MI,LN=result
             MI_ensemble_list.append(MI)
             LN_ensemble_list.append(LN)
-
+        print('gather all m_i={:d}:{:.1f}'.format(m_i,time.time()-st))
         MI_Born_list.append(MI_ensemble_list)
         LN_Born_list.append(LN_ensemble_list)
-
-        # no measurement
-        MI_no_list.append(params_init.mutual_information_m(subregionA,subregionB))
-        LN_no_list.append(params_init.log_neg(subregionA,subregionB))
-
-        print("{:.1f}".format(time.time()-st))
-
+        # print("{:.1f}".format(time.time()-st))
+    executor.shutdown()
     MI_Born_list=np.array(MI_Born_list)
     LN_Born_list=np.array(LN_Born_list)
     MI_no_list=np.array(MI_no_list)
