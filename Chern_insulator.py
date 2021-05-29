@@ -302,11 +302,13 @@ class Params:
 
     def measure_all_Born(self, proj_range):
         proj_range = self.linearize_index(proj_range, 4, proj=True)
+        self.proj_range=proj_range
         # print(proj_range)
         self.P_0_list = []
         self.covariance_matrix()
         for i in proj_range:
-            P_0 = (self.C_m_history[-1][i, i+1]+1)/2
+            # P_0 = (self.C_m_history[-1][i, i+1]+1)/2
+            P_0=0.5
             self.P_0_list.append(P_0)
             if np.random.rand() < P_0:
                 self.measure(0, [i, i+1])
