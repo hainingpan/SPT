@@ -58,7 +58,7 @@ class Params:
             self.bandstructure()
         occupancy_mat = np.matlib.repmat(
             self.fermi_dist(self.val, E_F), self.vec.shape[0], 1)
-        self.C_f = np.real((occupancy_mat*self.vec)@self.vec.T.conj())
+        self.C_f = (occupancy_mat*self.vec)@self.vec.T.conj()
 
     def covariance_matrix(self, E_F=0):
         '''
@@ -84,6 +84,7 @@ class Params:
         Gamma[np.ix_(odd, odd)] = Gamma_22
         assert np.abs(np.imag(Gamma)).max(
         ) < 1e-10, "Covariance matrix not real"
+        self.Gamma=Gamma
         self.C_m = np.real(Gamma-Gamma.T.conj())/2
         self.C_m_history = [self.C_m]
 
@@ -300,15 +301,15 @@ class Params:
             self.s_history = [s]
             self.i_history = [i]
 
-    def measure_all_Born(self, proj_range):
+    def measure_all_Born(self, proj_range,P_0=None):
         proj_range = self.linearize_index(proj_range, 4, proj=True)
         self.proj_range=proj_range
         # print(proj_range)
         self.P_0_list = []
         self.covariance_matrix()
         for i in proj_range:
-            # P_0 = (self.C_m_history[-1][i, i+1]+1)/2
-            P_0=0.5
+            if P_0 is None:
+                P_0 = (self.C_m_history[-1][i, i+1]+1)/2    # Use Born rule
             self.P_0_list.append(P_0)
             if np.random.rand() < P_0:
                 self.measure(0, [i, i+1])
