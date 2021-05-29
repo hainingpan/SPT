@@ -14,7 +14,8 @@ class Params:
             bcx=1,
             bcy=-1,
             T=0,
-            history=False):
+            history=False,
+            pi_flux=False):
         self.Lx = Lx
         self.Ly = Ly
         self.t = t
@@ -28,15 +29,18 @@ class Params:
         self.sigmay = np.array([[0, -1j], [1j, 0]])
         self.sigmaz = np.array([[1, 0], [0, -1]])
         # check which one is faster, use sparse or dense?
-        hopx = np.diag(np.ones(Lx-1), -1)
-        hopx[0, -1] = bcx
-        hopy = np.diag(np.ones(Ly-1), -1)
-        hopy[0, -1] = bcy
-        hopxmat = np.kron(hopx, np.eye(Ly))
-        hopymat = np.kron(np.eye(Lx), hopy)
-        onsitemat = np.eye(Lx*Ly)
-        self.Hamiltonian = ((np.kron(hopxmat-hopxmat.T, self.sigmax)+np.kron(hopymat-hopymat.T, self.sigmay)) *
-                            1j*t+Delta*np.kron(hopxmat+hopxmat.T+hopymat+hopymat.T, self.sigmaz))/2+m*np.kron(onsitemat, self.sigmaz)
+        if not pi_flux:
+            hopx = np.diag(np.ones(Lx-1), -1)
+            hopx[0, -1] = bcx
+            hopy = np.diag(np.ones(Ly-1), -1)
+            hopy[0, -1] = bcy
+            hopxmat = np.kron(hopx, np.eye(Ly))
+            hopymat = np.kron(np.eye(Lx), hopy)
+            onsitemat = np.eye(Lx*Ly)
+            self.Hamiltonian = ((np.kron(hopxmat-hopxmat.T, self.sigmax)+np.kron(hopymat-hopymat.T, self.sigmay)) *
+                                1j*t+Delta*np.kron(hopxmat+hopxmat.T+hopymat+hopymat.T, self.sigmaz))/2+m*np.kron(onsitemat, self.sigmaz)
+        
+            
 
     def bandstructure(self):
         val, vec = nla.eigh(self.Hamiltonian)
@@ -58,7 +62,7 @@ class Params:
             self.bandstructure()
         occupancy_mat = np.matlib.repmat(
             self.fermi_dist(self.val, E_F), self.vec.shape[0], 1)
-        self.C_f = (occupancy_mat*self.vec)@self.vec.T.conj()
+        self.C_f = ((occupancy_mat*self.vec)@self.vec.T.conj())
 
     def covariance_matrix(self, E_F=0):
         '''
@@ -106,8 +110,8 @@ class Params:
         '''
         subregion: [subregoin_x, subregion_y] index of unit cell
         '''
-        if not hasattr(self, 'C'):
-            self.covariance_matrix()
+        if not hasattr(self, 'C_f'):
+            self.correlation_matrix()
         try:
             subregion = list(subregion)
         except:
@@ -295,24 +299,29 @@ class Params:
         if self.history:
             self.C_m_history.append(Psi)
             self.s_history.append(s)
-            self.i_history.append(i)
+            self.i_history.append(ix[0])
         else:
             self.C_m_history = [Psi]
             self.s_history = [s]
-            self.i_history = [i]
+            self.i_history = [ix[0]]
 
-    def measure_all_Born(self, proj_range,P_0=None):
+    def measure_all_Born(self, proj_range,prob=None):
         proj_range = self.linearize_index(proj_range, 4, proj=True)
-        self.proj_range=proj_range
+        # self.proj_range=proj_range
         # print(proj_range)
         self.P_0_list = []
+        self.f_parity= []
         self.covariance_matrix()
         for i in proj_range:
-            if P_0 is None:
+            if prob is None:
                 P_0 = (self.C_m_history[-1][i, i+1]+1)/2    # Use Born rule
+            else:
+                P_0=prob
             self.P_0_list.append(P_0)
             if np.random.rand() < P_0:
                 self.measure(0, [i, i+1])
+                self.f_parity.append(0)
             else:
                 self.measure(1, [i, i+1])
+                self.f_parity.append(1)
         return self

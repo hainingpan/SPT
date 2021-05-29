@@ -39,7 +39,7 @@ if __name__=="__main__":
     executor=MPIPoolExecutor()
     ensemble_list_pool=[]
     for m_i,m in enumerate(m_list):
-        params_init=(Params(m=m,Lx=args.Lx,Ly=args.Ly,bcx=1,bcy=-1,history=False))
+        params_init=(Params(m=m,Lx=args.Lx,Ly=args.Ly))
         # Born rule
         inputs=[(params_init,subregionA,subregionB,subregionAp) for _ in range(args.es)]
         ensemble_list_pool.append(executor.starmap(run,inputs))
