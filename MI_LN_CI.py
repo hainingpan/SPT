@@ -72,7 +72,7 @@ if __name__=="__main__":
     LN_Born_list=np.array(LN_Born_list)
 
     
-    with open('MI_LN_CI_Born_En{:d}_pts{:d}_Lx{:d}_Ly{:d}_Ap{:s}'.format(args.es,args.pts,args.Lx,args.Ly,args.Bp*'Bp'),'wb') as f:
+    with open('MI_LN_CI_Born_En{:d}_pts{:d}_Lx{:d}_Ly{:d}_Ap{:s}.pickle'.format(args.es,args.pts,args.Lx,args.Ly,args.Bp*'Bp'),'wb') as f:
         pickle.dump([eta_Born_list,MI_Born_list,LN_Born_list],f)
 
 
