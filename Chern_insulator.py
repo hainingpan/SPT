@@ -14,6 +14,8 @@ class Params:
             bcx=1,
             bcy=-1,
             T=0,
+            dxmax=16,
+            dymax=16,
             history=False,
             pi_flux=False):
         self.Lx = Lx
@@ -30,17 +32,23 @@ class Params:
         self.sigmaz = np.array([[1, 0], [0, -1]])
         # check which one is faster, use sparse or dense?
         if not pi_flux:
-            hopx = np.diag(np.ones(Lx-1), -1)
-            hopx[0, -1] = bcx
-            hopy = np.diag(np.ones(Ly-1), -1)
-            hopy[0, -1] = bcy
-            hopxmat = np.kron(hopx, np.eye(Ly))
-            hopymat = np.kron(np.eye(Lx), hopy)
-            onsitemat = np.eye(Lx*Ly)
-            self.Hamiltonian = ((np.kron(hopxmat-hopxmat.T, self.sigmax)+np.kron(hopymat-hopymat.T, self.sigmay)) *
-                                1j*t+Delta*np.kron(hopxmat+hopxmat.T+hopymat+hopymat.T, self.sigmaz))/2+m*np.kron(onsitemat, self.sigmaz)
-        
-            
+            if Lx<np.inf and Ly<np.inf:
+                hopx = np.diag(np.ones(Lx-1), -1)
+                hopx[0, -1] = bcx
+                hopy = np.diag(np.ones(Ly-1), -1)
+                hopy[0, -1] = bcy
+                hopxmat = np.kron(hopx, np.eye(Ly))
+                hopymat = np.kron(np.eye(Lx), hopy)
+                onsitemat = np.eye(Lx*Ly)
+                self.Hamiltonian = ((np.kron(hopxmat-hopxmat.T, self.sigmax)+np.kron(hopymat-hopymat.T, self.sigmay))* 1j*t-Delta*np.kron(hopxmat+hopxmat.T+hopymat+hopymat.T, self.sigmaz))/2+m*np.kron(onsitemat, self.sigmaz)
+            elif Lx==np.inf and Ly==np.inf:
+                self.dxmax=dxmax
+                self.dymax=dymax
+                self.dx=lambda kx: t*np.sin(kx)
+                self.dy=lambda ky: t*np.sin(ky)
+                self.dz=lambda kx,ky: m-Delta*np.cos(kx)-Delta*np.cos(ky)
+            else:
+                raise ValueError('The size of system {:d,:d} is not supported.'.format(Lx,Ly))
 
     def bandstructure(self):
         val, vec = nla.eigh(self.Hamiltonian)
@@ -48,11 +56,68 @@ class Params:
         self.val = val[sortindex]
         self.vec = vec[:, sortindex]
 
+
+    # def E_k(self,kx,ky,branch):
+    #     '''
+    #     branch = +/-1
+    #     '''
+    #     return branch*np.sqrt(self.dx(kx)**2+self.dy(ky)**2+self.dz(k)**2)
+    #     # return branch*np.sqrt(self.t**2*(np.sin(kx)**2+np.sin(ky)**2)+(self.m-self.Delta*np.cos(kx)-self.Delta*np.cos(ky))**2)
+
+    def fermi_dist_k(self,kx,ky,branch,E_F=0):
+        if self.T==0:
+            return np.heaviside(E_F-self.E_k(kx,ky,branch),0)
+        else:
+            return 1/(1+np.exp((self.E_k(kx,ky,branch)-E_F)/self.T))
+
     def fermi_dist(self, energy, E_F):
         if self.T == 0:
             return np.heaviside(E_F-energy, 0)
         else:
             return 1/(1+np.exp((energy-E_F)/self.T))
+
+    def correlation_matrix_inf_fft(self,threshold=[1024,512]):
+        '''
+        self.dxmax/self.dymax: the maximal distance in x/y direction (in terms of unit cell) 
+        Directly call fft to evaluate the integral
+        '''
+        assert self.Lx==np.inf and self.Ly==np.inf, "Wire length should be inf"
+        # cov_mat=[]
+        Nxmax=max(2*self.dxmax,threshold[0])
+        Nymax=max(2*self.dymax,threshold[1])
+        if self.T>0:
+            pass    #to be filled
+        else:
+            kxlist=np.arange(0,2*np.pi,2*np.pi/Nxmax)
+            kylist=np.arange(0,2*np.pi,2*np.pi/Nymax)
+            kxmap,kymap=np.meshgrid(kxlist,kylist)
+            dxmap=self.dx(kxmap)
+            dymap=self.dy(kymap)
+            dzmap=self.dz(kxmap,kymap)
+            Ekmap=np.sqrt(dxmap**2+dymap**2+dzmap**2)
+            Ekxymap=np.sqrt(dxmap**2+dymap**2)
+            costheta=dzmap/Ekmap
+            sintheta=Ekxymap/Ekmap
+            Ekxymap[0,0]=np.inf #to avoid 0/0 in cos(phi) & sin(phi); the order of this line matters
+            cosphi=dxmap/Ekxymap
+            sinphi=dymap/Ekxymap
+            fftcostheta=np.fft.ifft2(costheta)
+            constmap=np.zeros((Nymax,Nxmax))
+            constmap[0,0]=0.5
+            A_11=constmap-fftcostheta/2
+            A_22=constmap+fftcostheta/2
+            A_12=np.fft.ifft2(-(cosphi-1j*sinphi)/2*sintheta)
+            A_21=np.fft.ifft2(-(cosphi+1j*sinphi)/2*sintheta)
+            mat=np.stack([[A_11,A_12],[A_21,A_22]])
+            C_f=np.zeros((2*self.dxmax*self.dymax,2*self.dxmax*self.dymax))*1j
+            for i in range(self.dxmax*self.dymax):
+                for j in range(i):
+                    di,dj=(i-j)%self.dymax,(i-j)//self.dymax
+                    C_f[2*i:2*i+2,2*j:2*j+2]=mat[:,:,di,dj]
+            C_f=C_f+C_f.T.conj()
+            for i in range(self.dxmax*self.dymax):
+                C_f[2*i:2*i+2,2*i:2*i+2]=mat[:,:,0,0]
+            self.C_f=C_f
 
     def correlation_matrix(self, E_F=0):
         '''
@@ -70,7 +135,7 @@ class Params:
         Maybe differs by a minus sign
         '''
         if not hasattr(self, 'C_f'):
-            if self.Lx < np.inf:
+            if self.Lx < np.inf and self.Ly<np.inf:
                 self.correlation_matrix()
             else:
                 self.correlation_matrix_inf_fft()
@@ -86,9 +151,7 @@ class Params:
         Gamma[np.ix_(even, odd)] = Gamma_12
         Gamma[np.ix_(odd, even)] = Gamma_21
         Gamma[np.ix_(odd, odd)] = Gamma_22
-        assert np.abs(np.imag(Gamma)).max(
-        ) < 1e-10, "Covariance matrix not real"
-        self.Gamma=Gamma
+        assert np.abs(np.imag(Gamma)).max() < 1e-10, "Covariance matrix not real {:.5f}".format(np.abs(np.imag(Gamma)).max())
         self.C_m = np.real(Gamma-Gamma.T.conj())/2
         self.C_m_history = [self.C_m]
 
@@ -100,7 +163,10 @@ class Params:
         subregion_x = np.array(subregion_x)
         subregion_y = np.array(subregion_y)
         X, Y = np.meshgrid(subregion_x, subregion_y)
-        linear_index = ((X*self.Ly+Y).flatten('F'))
+        if self.Ly<np.inf:
+            linear_index = ((X*self.Ly+Y).flatten('F'))
+        else:
+            linear_index = ((X*self.dymax+Y).flatten('F'))
         if proj:
             return sorted(np.concatenate([n*linear_index+i for i in range(0, n, 2)]))
         else:
@@ -236,6 +302,8 @@ class Params:
         eA = np.sum(np.log(((1+xi+0j)/2)**0.5+((1-xi+0j)/2)**0.5))/2
         chi = nla.eigvalsh(1j*Gamma[np.ix_(subregion_AB, subregion_AB)])
         sA = np.sum(np.log(((1+chi)/2)**2+((1-chi)/2)**2))/4
+        self.eA=eA
+        self.sA=sA
         return np.real(eA+sA)
 
     def projection(self, s):
@@ -325,3 +393,11 @@ class Params:
                 self.measure(1, [i, i+1])
                 self.f_parity.append(1)
         return self
+
+def cross_ratio(x,L):
+    if L<np.inf:
+        xx=lambda i,j: (np.sin(np.pi/(L)*np.abs(x[i]-x[j])))
+    else:
+        xx=lambda i,j: np.abs(x[i]-x[j])
+    eta=(xx(0,1)*xx(2,3))/(xx(0,2)*xx(1,3))
+    return eta

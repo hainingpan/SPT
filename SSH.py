@@ -92,8 +92,8 @@ class Params:
         Directly call fft to evaluate the integral
         '''
         assert self.L==np.inf, "Wire length should be inf"
-        cov_mat=[]
-        d=max(self.dmax,threshold)
+        # cov_mat=[]
+        d=max(2*self.dmax,threshold)
         if self.T>0:
             pass    #to be filled
         else:
@@ -103,18 +103,18 @@ class Params:
             A_11=np.array([0.5]+[0]*(d-1))
             A_12=np.fft.ifft(integrand_12(np.arange(0,2*np.pi,2*np.pi/d)))/2
             A_21=np.fft.ifft(integrand_21(np.arange(0,2*np.pi,2*np.pi/d)))/2
-            A_12=np.sign(np.real(A_12))*np.abs(A_12)
-            A_21=np.sign(np.real(A_21))*np.abs(A_21)
+            # A_12=np.sign(np.real(A_12))*np.abs(A_12)
+            # A_21=np.sign(np.real(A_21))*np.abs(A_21)
 
         mat=np.array([[A_11,A_12],[A_21,A_11]])
-        Gamma=np.zeros((2*self.dmax,2*self.dmax))
+        C_f=np.zeros((2*self.dmax,2*self.dmax))*1j
         for i in range(self.dmax):
             for j in range(i):
-                Gamma[2*i:2*i+2,2*j:2*j+2]=mat[:,:,i-j]
-        Gamma=Gamma+Gamma.T
+                C_f[2*i:2*i+2,2*j:2*j+2]=mat[:,:,i-j]
+        C_f=C_f+C_f.T.conj()
         for i in range(self.dmax):
-            Gamma[2*i:2*i+2,2*i:2*i+2]=mat[:,:,0]
-        self.C_f=Gamma
+            C_f[2*i:2*i+2,2*i:2*i+2]=mat[:,:,0]
+        self.C_f=C_f
 
 
     def correlation_matrix(self,E_F=0):
@@ -124,7 +124,9 @@ class Params:
         if not (hasattr(self,'val') and hasattr(self,'vec')):
             self.bandstructure()
         occupancy_mat=np.matlib.repmat(self.fermi_dist(self.val,E_F),self.vec.shape[0],1)
-        self.C_f=np.real((occupancy_mat*self.vec)@self.vec.T.conj())
+        # maxi=np.imag((occupancy_mat*self.vec)@self.vec.T.conj()).max()
+        # print('max={:.2f}'.format(maxi))
+        self.C_f=((occupancy_mat*self.vec)@self.vec.T.conj())
 
     
     def covariance_matrix(self,E_F=0):
@@ -154,8 +156,8 @@ class Params:
         self.C_m_history=[self.C_m]
 
     def c_subregion_f(self,subregion):
-        if not hasattr(self,'C'):
-            self.covariance_matrix()
+        if not hasattr(self,'C_f'):
+            self.correlation_matrix()
         try:
             subregion=np.array(subregion)
         except:
@@ -308,19 +310,13 @@ class Params:
             self.measure(s,[i,i+1])
         return self
 
-    def measure_all_Born(self,proj_range=None,order=None,type='onsite'):
+    def measure_all_Born(self,proj_range=None,type='onsite'):
         if proj_range is None:
             if type=='onsite':
                 proj_range=np.arange(self.L,self.L*2,2)
             if type=='link':
                 proj_range=np.arange(self.L,self.L*2,4)
 
-        if order=='e2':
-            proj_range=np.concatenate((proj_range[::2],proj_range[1::2]))
-        if order=='e3':
-            proj_range=np.concatenate((proj_range[::3],proj_range[1::3],proj_range[2::3]))
-        if order=='e4':
-            proj_range=np.concatenate((proj_range[::4],proj_range[1::4],proj_range[2::4]+proj_range[3::4]))
         # self.P_0_list=[]
         self.covariance_matrix()
         if type=='onsite':
@@ -350,7 +346,7 @@ class Params:
     def log_neg(self,subregionA,subregionB,Gamma=None):
         assert np.intersect1d(subregionA,subregionB).size==0 , "Subregion A and B overlap"
         if not hasattr(self,'C_m'):
-            self.covariance_matrix_m()
+            self.covariance_matrix()
         
         if Gamma is None:
             Gamma=self.C_m_history[-1]

@@ -5,5 +5,8 @@
 # mpirun -n 4 python MI_LN_SSH.py --es 100 --pt 500 --type=link --timing=True --Bp=True
 # mpirun -np 4 python -m mpi4py.futures MI_LN_inf_SSH.py --es 100 --min 8 --max 100 --timing True --type onsite 
 # mpirun -np 4 python -m mpi4py.futures MI_LN_inf_SSH.py --es 1000 --min 8 --max 100 --timing True --type link
-# mpirun -np 4 python -m mpi4py.futures MI_LN_inf_SSH.py --es 100 --min 8 --max 100 --timing True --type onsite --density_numerator 1 --density_denominator 3
-mpirun -np 4 python -m mpi4py.futures MI_LN_inf_SSH.py --es 1000 --min 8 --max 100 --timing True --type link --density_numerator 1 --density_denominator 3
+# mpirun -np 4 python -m mpi4py.futures MI_LN_inf_SSH.py --es 100 --min 8 --max 100 --timing True --type onsite --prob True --size 32
+# mpirun -np 4 python -m mpi4py.futures MI_LN_inf_SSH.py --es 1000 --min 8 --max 100 --timing True --type link 
+# mpirun -np 4 python -m mpi4py.futures Born_CI.py --es 100 --timing True --Lx 16 --Ly 16 --num 20
+mpirun -np 4 python -m mpi4py.futures MI_LN_CI.py --es 10 --timing True --Lx 16 --Ly 16 --pts 20
+
