@@ -17,7 +17,7 @@ class Params:
             dxmax=16,
             dymax=16,
             history=False,
-            pi_flux=False):
+            ):
         self.Lx = Lx
         self.Ly = Ly
         self.t = t
@@ -31,24 +31,24 @@ class Params:
         self.sigmay = np.array([[0, -1j], [1j, 0]])
         self.sigmaz = np.array([[1, 0], [0, -1]])
         # check which one is faster, use sparse or dense?
-        if not pi_flux:
-            if Lx<np.inf and Ly<np.inf:
-                hopx = np.diag(np.ones(Lx-1), -1)
-                hopx[0, -1] = bcx
-                hopy = np.diag(np.ones(Ly-1), -1)
-                hopy[0, -1] = bcy
-                hopxmat = np.kron(hopx, np.eye(Ly))
-                hopymat = np.kron(np.eye(Lx), hopy)
-                onsitemat = np.eye(Lx*Ly)
-                self.Hamiltonian = ((np.kron(hopxmat-hopxmat.T, self.sigmax)+np.kron(hopymat-hopymat.T, self.sigmay))* 1j*t-Delta*np.kron(hopxmat+hopxmat.T+hopymat+hopymat.T, self.sigmaz))/2+m*np.kron(onsitemat, self.sigmaz)
-            elif Lx==np.inf and Ly==np.inf:
-                self.dxmax=dxmax
-                self.dymax=dymax
-                self.dx=lambda kx: t*np.sin(kx)
-                self.dy=lambda ky: t*np.sin(ky)
-                self.dz=lambda kx,ky: m-Delta*np.cos(kx)-Delta*np.cos(ky)
-            else:
-                raise ValueError('The size of system {:d,:d} is not supported.'.format(Lx,Ly))
+        if Lx<np.inf and Ly<np.inf:
+            hopx = np.diag(np.ones(Lx-1), -1)
+            hopx[0, -1] = bcx
+            hopy = np.diag(np.ones(Ly-1), -1)
+            hopy[0, -1] = bcy
+            hopxmat = np.kron(hopx, np.eye(Ly))
+            hopymat = np.kron(np.eye(Lx), hopy)
+            onsitemat = np.eye(Lx*Ly)
+            self.Hamiltonian = ((np.kron(hopxmat-hopxmat.T, self.sigmax)+np.kron(hopymat-hopymat.T, self.sigmay))* 1j*t-Delta*np.kron(hopxmat+hopxmat.T+hopymat+hopymat.T, self.sigmaz))/2+m*np.kron(onsitemat, self.sigmaz)
+        elif Lx==np.inf and Ly==np.inf:
+            self.dxmax=dxmax
+            self.dymax=dymax
+            self.dx=lambda kx: t*np.sin(kx)
+            self.dy=lambda ky: t*np.sin(ky)
+            self.dz=lambda kx,ky: m-Delta*np.cos(kx)-Delta*np.cos(ky)
+        else:
+            raise ValueError('The size of system {:d,:d} is not supported.'.format(Lx,Ly))
+            
 
     def bandstructure(self):
         val, vec = nla.eigh(self.Hamiltonian)
@@ -112,8 +112,11 @@ class Params:
             C_f=np.zeros((2*self.dxmax*self.dymax,2*self.dxmax*self.dymax))*1j
             for i in range(self.dxmax*self.dymax):
                 for j in range(i):
-                    di,dj=(i-j)%self.dymax,(i-j)//self.dymax
-                    C_f[2*i:2*i+2,2*j:2*j+2]=mat[:,:,di,dj]
+                    iy,ix=i%self.dymax,i//self.dymax
+                    jy,jx=j%self.dymax,j//self.dymax
+                    dx,dy=(jx-ix)%Nxmax,(jy-iy)%Nymax
+                    # di,dj=(i-j)%self.dymax,(i-j)//self.dymax
+                    C_f[2*i:2*i+2,2*j:2*j+2]=mat[:,:,dy,dx]
             C_f=C_f+C_f.T.conj()
             for i in range(self.dxmax*self.dymax):
                 C_f[2*i:2*i+2,2*i:2*i+2]=mat[:,:,0,0]
@@ -171,6 +174,14 @@ class Params:
             return sorted(np.concatenate([n*linear_index+i for i in range(0, n, 2)]))
         else:
             return sorted(np.concatenate([n*linear_index+i for i in range(n)]))
+
+    def square_index(self, subregion):
+        subregion=np.unique(np.array(subregion)//4)
+        if self.Lx<np.inf and self.Ly<np.inf:
+            return subregion//self.Lx,subregion%self.Lx
+        else:
+            return subregion//self.dxmax,subregion%self.dxmax
+
 
     def c_subregion_f(self, subregion, linear=True):
         '''
@@ -269,9 +280,10 @@ class Params:
         s_AB = self.von_Neumann_entropy_m(subregion_AB)
         return s_A+s_B-s_AB
 
-    def log_neg(self, subregion_A, subregion_B, Gamma=None):
-        subregion_A = self.linearize_index(subregion_A, 4)
-        subregion_B = self.linearize_index(subregion_B, 4)
+    def log_neg(self, subregion_A, subregion_B, Gamma=None,linear=False):
+        if not linear:
+            subregion_A = self.linearize_index(subregion_A, 4)
+            subregion_B = self.linearize_index(subregion_B, 4)
         assert np.intersect1d(
             subregion_A, subregion_B).size == 0, "Subregion A and B overlap"
         if not hasattr(self, 'C_m'):
@@ -373,8 +385,9 @@ class Params:
             self.s_history = [s]
             self.i_history = [ix[0]]
 
-    def measure_all_Born(self, proj_range,prob=None):
-        proj_range = self.linearize_index(proj_range, 4, proj=True)
+    def measure_all_Born(self, proj_range,prob=None,linear=False):
+        if not linear:
+            proj_range = self.linearize_index(proj_range, 4, proj=True)
         # self.proj_range=proj_range
         # print(proj_range)
         self.P_0_list = []
