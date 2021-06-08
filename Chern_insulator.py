@@ -8,8 +8,8 @@ class Params:
     def __init__(self,
             Lx=4,
             Ly=16,
-            t=1,
             Delta=1,
+            t=1,
             m=1,
             bcx=1,
             bcy=-1,
@@ -20,8 +20,8 @@ class Params:
             ):
         self.Lx = Lx
         self.Ly = Ly
-        self.t = t
         self.Delta = Delta
+        self.t = t
         self.m = m
         self.bcx = bcx
         self.bcy = bcy
@@ -39,13 +39,13 @@ class Params:
             hopxmat = np.kron(hopx, np.eye(Ly))
             hopymat = np.kron(np.eye(Lx), hopy)
             onsitemat = np.eye(Lx*Ly)
-            self.Hamiltonian = ((np.kron(hopxmat-hopxmat.T, self.sigmax)+np.kron(hopymat-hopymat.T, self.sigmay))* 1j*t-Delta*np.kron(hopxmat+hopxmat.T+hopymat+hopymat.T, self.sigmaz))/2+m*np.kron(onsitemat, self.sigmaz)
+            self.Hamiltonian = ((np.kron(hopxmat-hopxmat.T, self.sigmax)+np.kron(hopymat-hopymat.T, self.sigmay))* 1j*Delta-t*np.kron(hopxmat+hopxmat.T+hopymat+hopymat.T, self.sigmaz))/2+m*np.kron(onsitemat, self.sigmaz)
         elif Lx==np.inf and Ly==np.inf:
             self.dxmax=dxmax
             self.dymax=dymax
-            self.dx=lambda kx: t*np.sin(kx)
-            self.dy=lambda ky: t*np.sin(ky)
-            self.dz=lambda kx,ky: m-Delta*np.cos(kx)-Delta*np.cos(ky)
+            self.dx=lambda kx: Delta*np.sin(kx)
+            self.dy=lambda ky: Delta*np.sin(ky)
+            self.dz=lambda kx,ky: m-t*np.cos(kx)-t*np.cos(ky)
         else:
             raise ValueError('The size of system {:d,:d} is not supported.'.format(Lx,Ly))
             
@@ -55,14 +55,6 @@ class Params:
         sortindex = np.argsort(val)
         self.val = val[sortindex]
         self.vec = vec[:, sortindex]
-
-
-    # def E_k(self,kx,ky,branch):
-    #     '''
-    #     branch = +/-1
-    #     '''
-    #     return branch*np.sqrt(self.dx(kx)**2+self.dy(ky)**2+self.dz(k)**2)
-    #     # return branch*np.sqrt(self.t**2*(np.sin(kx)**2+np.sin(ky)**2)+(self.m-self.Delta*np.cos(kx)-self.Delta*np.cos(ky))**2)
 
     def fermi_dist_k(self,kx,ky,branch,E_F=0):
         if self.T==0:
@@ -128,8 +120,7 @@ class Params:
         '''
         if not (hasattr(self, 'val') and hasattr(self, 'vec')):
             self.bandstructure()
-        occupancy_mat = np.matlib.repmat(
-            self.fermi_dist(self.val, E_F), self.vec.shape[0], 1)
+        occupancy_mat = np.matlib.repmat(self.fermi_dist(self.val, E_F), self.vec.shape[0], 1)
         self.C_f = ((occupancy_mat*self.vec)@self.vec.T.conj())
 
     def covariance_matrix(self, E_F=0):
@@ -158,9 +149,10 @@ class Params:
         self.C_m = np.real(Gamma-Gamma.T.conj())/2
         self.C_m_history = [self.C_m]
 
-    def linearize_index(self, subregion, n, proj=False):
+    def linearize_index(self, subregion, n, proj=False, k=2):
         '''
         If proj ==True, then the index used for projection operator will be returned
+        k, the size of measurement, is useful only when proj=True
         '''
         subregion_x, subregion_y = (subregion)
         subregion_x = np.array(subregion_x)
@@ -171,16 +163,16 @@ class Params:
         else:
             linear_index = ((X*self.dymax+Y).flatten('F'))
         if proj:
-            return sorted(np.concatenate([n*linear_index+i for i in range(0, n, 2)]))
+            return sorted(np.concatenate([n*linear_index+i for i in range(0, n, k)]))
         else:
             return sorted(np.concatenate([n*linear_index+i for i in range(n)]))
 
     def square_index(self, subregion):
         subregion=np.unique(np.array(subregion)//4)
         if self.Lx<np.inf and self.Ly<np.inf:
-            return subregion//self.Lx,subregion%self.Lx
+            return subregion//self.Ly,subregion%self.Ly
         else:
-            return subregion//self.dxmax,subregion%self.dxmax
+            return subregion//self.dymax,subregion%self.dymax
 
 
     def c_subregion_f(self, subregion, linear=True):
@@ -318,7 +310,7 @@ class Params:
         self.sA=sA
         return np.real(eA+sA)
 
-    def projection(self, s):
+    def projection(self, s,type='onsite'):
         '''
         For type:'onsite'
             occupancy number: s= 0,1 
@@ -326,14 +318,40 @@ class Params:
         For type:'link'
             (o,+)|(o,-)|(e,+)|(e,-)
         '''
-        assert (s == 0 or s == 1), "s={} is either 0 or 1".format(s)
-        blkmat = np.array([[0, -(-1)**s, 0, 0],
-                           [(-1)**s, 0, 0, 0],
-                           [0, 0, 0, (-1)**s],
-                           [0, 0, -(-1)**s, 0]])
-        return blkmat
+        if type=='onsite':
+            assert (s == 0 or s == 1), "s={} is either 0 or 1".format(s)
+            blkmat = np.array([[0, -(-1)**s, 0, 0],
+                            [(-1)**s, 0, 0, 0],
+                            [0, 0, 0, (-1)**s],
+                            [0, 0, -(-1)**s, 0]])
+            return blkmat
+        if type=='link':
+            assert (s in ['o+','o-','e+','e-']), "s={} for {} is not defined".format(s,type)
+            if s=='o+':
+                antidiag=[1,-1,1,-1]
+                blkmat=np.diag(antidiag)
+                blkmat=np.fliplr(blkmat)
+            if s=='o-':
+                antidiag=[-1,1,-1,1]
+                blkmat=np.diag(antidiag)
+                blkmat=np.fliplr(blkmat)
+            if s=='e+':
+                blkmat=np.array([[0,-1,0,0],
+                                 [1,0,0,0],
+                                 [0,0,0,-1],
+                                 [0,0,1,0]])
+            if s=='e-':
+                blkmat=-np.array([[0,-1,0,0],
+                                 [1,0,0,0],
+                                 [0,0,0,-1],
+                                 [0,0,1,0]])
+            proj=np.zeros((8,8))
+            proj[:4,:4]=blkmat
+            proj[4:,4:]=blkmat.T
+            return proj            
+        raise ValueError("type '{}' is not defined".format(type))
 
-    def measure(self, s, ix):
+    def measure(self, s, ix,type='onsite'):
         if not hasattr(self, 'C_m'):
             self.covariance_matrix()
         if not hasattr(self, 's_history'):
@@ -353,7 +371,7 @@ class Params:
         Gamma_LR = mat[:-len(ix), -len(ix):]
         Gamma_RR = mat[-len(ix):, -len(ix):]
 
-        proj = self.projection(s)
+        proj = self.projection(s,type=type)
         Upsilon_LL = proj[:-len(ix), :-len(ix)]
         Upsilon_RR = proj[-len(ix):, -len(ix):]
         Upsilon_RL = proj[-len(ix):, :-len(ix)]
@@ -385,27 +403,45 @@ class Params:
             self.s_history = [s]
             self.i_history = [ix[0]]
 
-    def measure_all_Born(self, proj_range,prob=None,linear=False):
+    def measure_all_Born(self, proj_range,prob=None,linear=False,type='onsite'):
         if not linear:
-            proj_range = self.linearize_index(proj_range, 4, proj=True)
+            if type=='onsite':
+                proj_range = self.linearize_index(proj_range, 4, proj=True)
+            if type=='link':
+                proj_range = self.linearize_index(proj_range, 4, proj=True,k=4)
         # self.proj_range=proj_range
         # print(proj_range)
         self.P_0_list = []
         self.f_parity= []
         self.covariance_matrix()
-        for i in proj_range:
-            if prob is None:
-                P_0 = (self.C_m_history[-1][i, i+1]+1)/2    # Use Born rule
-            else:
-                P_0=prob
-            self.P_0_list.append(P_0)
-            if np.random.rand() < P_0:
-                self.measure(0, [i, i+1])
-                self.f_parity.append(0)
-            else:
-                self.measure(1, [i, i+1])
-                self.f_parity.append(1)
-        return self
+        if type=='onsite':
+            for i in proj_range:
+                if prob is None:
+                    P_0 = (self.C_m_history[-1][i, i+1]+1)/2    # Use Born rule
+                else:
+                    P_0=prob
+                self.P_0_list.append(P_0)
+                if np.random.rand() < P_0:
+                    self.measure(0, [i, i+1])
+                    self.f_parity.append(0)
+                else:
+                    self.measure(1, [i, i+1])
+                    self.f_parity.append(1)
+            return self
+
+        if type=='link':
+            for i in proj_range:
+                Gamma=self.C_m_history[-1][i:i+4,i:i+4]
+                P={}
+                gamma1234=-Gamma[0,1]*Gamma[2,3]+Gamma[0,2]*Gamma[1,3]-Gamma[0,3]*Gamma[1,2]
+                P['o+']=(1+Gamma[1,2]-Gamma[0,3]+gamma1234)/4
+                P['o-']=(1-Gamma[1,2]+Gamma[0,3]+gamma1234)/4
+                P['e+']=(1+Gamma[0,1]+Gamma[2,3]-gamma1234)/4
+                P['e-']=(1-Gamma[0,1]-Gamma[2,3]-gamma1234)/4
+                # print((P.values()))
+                s=np.random.choice(['o+','o-','e+','e-'],p=[P['o+'],P['o-'],P['e+'],P['e-']])
+                self.measure(s,[i,i+1,i+2,i+3],type='link')
+            return self
 
 def cross_ratio(x,L):
     if L<np.inf:
