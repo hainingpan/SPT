@@ -38,8 +38,10 @@ class Params:
             hopy[0, -1] = bcy
             hopxmat = np.kron(hopx, np.eye(Ly))
             hopymat = np.kron(np.eye(Lx), hopy)
+            self.hopxmat=hopxmat
+            self.hopymat=hopymat
             onsitemat = np.eye(Lx*Ly)
-            self.Hamiltonian = ((np.kron(hopxmat-hopxmat.T, self.sigmax)+np.kron(hopymat-hopymat.T, self.sigmay))* 1j*Delta-t*np.kron(hopxmat+hopxmat.T+hopymat+hopymat.T, self.sigmaz))/2+m*np.kron(onsitemat, self.sigmaz)
+            self.Hamiltonian = ((np.kron(hopxmat-hopxmat.T, self.sigmay)+np.kron(hopymat-hopymat.T, self.sigmax))* 1j*Delta-t*np.kron(hopxmat+hopxmat.T+hopymat+hopymat.T, self.sigmaz))/2+m*np.kron(onsitemat, self.sigmaz)
         elif Lx==np.inf and Ly==np.inf:
             self.dxmax=dxmax
             self.dymax=dymax
