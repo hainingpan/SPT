@@ -108,7 +108,7 @@ class Params:
                 for j in range(i):
                     ix,iy=i%self.dxmax,i//self.dxmax
                     jx,jy=j%self.dxmax,j//self.dxmax
-                    dx,dy=(jx-ix)%Nxmax,(jy-iy)%Nymax
+                    dx,dy=(ix-jx)%Nxmax,(iy-jy)%Nymax
                     C_f[2*i:2*i+2,2*j:2*j+2]=mat[:,:,dy,dx]
             C_f=C_f+C_f.T.conj()
             for i in range(self.dxmax*self.dymax):
