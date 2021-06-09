@@ -35,10 +35,10 @@ class Params:
             hopx[0, -1] = bcx
             hopy = np.diag(np.ones(Ly-1), -1)
             hopy[0, -1] = bcy
-            hopxmat = np.kron(hopx, np.eye(Ly))
-            hopymat = np.kron(np.eye(Lx), hopy)
+            hopxmat = np.kron( np.eye(Ly),hopx)
+            hopymat = np.kron(hopy,np.eye(Lx))
             onsitemat = np.eye(Lx*Ly)
-            self.Hamiltonian = ((np.kron(hopxmat-hopxmat.T, self.sigmay)+np.kron(hopymat-hopymat.T, self.sigmax))* 1j*Delta-t*np.kron(hopxmat+hopxmat.T+hopymat+hopymat.T, self.sigmaz))/2+m*np.kron(onsitemat, self.sigmaz)
+            self.Hamiltonian = ((np.kron(hopxmat-hopxmat.T, self.sigmax)+np.kron(hopymat-hopymat.T, self.sigmay))* 1j*Delta-t*np.kron(hopxmat+hopxmat.T+hopymat+hopymat.T, self.sigmaz))/2+m*np.kron(onsitemat, self.sigmaz)
         elif Lx==np.inf and Ly==np.inf:
             pass
             # self.dxmax=dxmax
@@ -116,9 +116,9 @@ class Params:
         subregion_y = np.array(subregion_y)
         X, Y = np.meshgrid(subregion_x, subregion_y)
         if self.Ly<np.inf:
-            linear_index = ((X*self.Ly+Y).flatten('F'))
+            linear_index = ((X+Y*self.Lx).flatten('F'))
         else:
-            linear_index = ((X*self.dymax+Y).flatten('F'))
+            linear_index = ((X+Y*self.dxmax).flatten('F'))
         if proj:
             return sorted(np.concatenate([n*linear_index+i for i in range(0, n, 2)]))
         else:
@@ -127,10 +127,12 @@ class Params:
     def square_index(self, subregion):
         subregion=np.unique(np.array(subregion)//2)
         if self.Lx<np.inf and self.Ly<np.inf:
-            return subregion//self.Ly,subregion%self.Ly
+            assert subregion_x.max()<self.Lx and subregion_y.max()<self.Ly, 'Range exceeds'
+            return subregion%self.Lx,subregion//self.Lx
         else:
-            return subregion//self.dymax,subregion%self.dymax
-
+            assert subregion_x.max()<self.dxmax and subregion_y.max()<self.dymax, 'Range exceeds'
+            return subregion%self.dxmax,subregion//self.dxmax
+            
     def c_subregion_f(self, subregion, linear=True):
         '''
         subregion: [subregoin_x, subregion_y] index of unit cell

@@ -36,12 +36,12 @@ class Params:
             hopx[0, -1] = bcx
             hopy = np.diag(np.ones(Ly-1), -1)
             hopy[0, -1] = bcy
-            hopxmat = np.kron(hopx, np.eye(Ly))
-            hopymat = np.kron(np.eye(Lx), hopy)
+            hopxmat = np.kron(np.eye(Ly),hopx)
+            hopymat = np.kron(hopy,np.eye(Lx))
             self.hopxmat=hopxmat
             self.hopymat=hopymat
             onsitemat = np.eye(Lx*Ly)
-            self.Hamiltonian = ((np.kron(hopxmat-hopxmat.T, self.sigmay)+np.kron(hopymat-hopymat.T, self.sigmax))* 1j*Delta-t*np.kron(hopxmat+hopxmat.T+hopymat+hopymat.T, self.sigmaz))/2+m*np.kron(onsitemat, self.sigmaz)
+            self.Hamiltonian = ((np.kron(hopxmat-hopxmat.T, self.sigmax)+np.kron(hopymat-hopymat.T, self.sigmay))* 1j*Delta-t*np.kron(hopxmat+hopxmat.T+hopymat+hopymat.T, self.sigmaz))/2+m*np.kron(onsitemat, self.sigmaz)
         elif Lx==np.inf and Ly==np.inf:
             self.dxmax=dxmax
             self.dymax=dymax
@@ -106,10 +106,9 @@ class Params:
             C_f=np.zeros((2*self.dxmax*self.dymax,2*self.dxmax*self.dymax))*1j
             for i in range(self.dxmax*self.dymax):
                 for j in range(i):
-                    iy,ix=i%self.dymax,i//self.dymax
-                    jy,jx=j%self.dymax,j//self.dymax
+                    ix,iy=i%self.dxmax,i//self.dxmax
+                    jx,jy=j%self.dxmax,j//self.dxmax
                     dx,dy=(jx-ix)%Nxmax,(jy-iy)%Nymax
-                    # di,dj=(i-j)%self.dymax,(i-j)//self.dymax
                     C_f[2*i:2*i+2,2*j:2*j+2]=mat[:,:,dy,dx]
             C_f=C_f+C_f.T.conj()
             for i in range(self.dxmax*self.dymax):
@@ -159,11 +158,14 @@ class Params:
         subregion_x, subregion_y = (subregion)
         subregion_x = np.array(subregion_x)
         subregion_y = np.array(subregion_y)
+        
         X, Y = np.meshgrid(subregion_x, subregion_y)
         if self.Ly<np.inf:
-            linear_index = ((X*self.Ly+Y).flatten('F'))
+            assert subregion_x.max()<self.Lx and subregion_y.max()<self.Ly, 'Range exceeds'
+            linear_index = ((X+Y*self.Lx).flatten('F'))
         else:
-            linear_index = ((X*self.dymax+Y).flatten('F'))
+            assert subregion_x.max()<self.dxmax and subregion_y.max()<self.dymax, 'Range exceeds'
+            linear_index = ((X+Y*self.dxmax).flatten('F'))
         if proj:
             return sorted(np.concatenate([n*linear_index+i for i in range(0, n, k)]))
         else:
@@ -172,9 +174,9 @@ class Params:
     def square_index(self, subregion):
         subregion=np.unique(np.array(subregion)//4)
         if self.Lx<np.inf and self.Ly<np.inf:
-            return subregion//self.Ly,subregion%self.Ly
+            return subregion%self.Lx,subregion//self.Lx
         else:
-            return subregion//self.dymax,subregion%self.dymax
+            return subregion%self.dxmax,subregion//self.dxmax
 
 
     def c_subregion_f(self, subregion, linear=True):
