@@ -462,6 +462,8 @@ class Params:
                     s=np.random.choice(['o+','o-','e+','e-'],p=[P['o+'],P['o-'],P['e+'],P['e-']])
                 elif pool==2:
                     s=np.random.choice(['o+','o-'],p=[P['o+']/(P['o+']+P['o-']),P['o-']/(P['o+']+P['o-'])])
+                elif pool==-2:
+                    s=np.random.choice(['e+','e-'],p=[P['e+']/(P['e+']+P['e-']),P['e-']/(P['e+']+P['e-'])])
                 self.measure(s,[i,i+1,i+2,i+3],type='link')
             return self
 
