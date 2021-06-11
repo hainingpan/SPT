@@ -11,8 +11,8 @@ class Params:
             Delta=1,
             t=1,
             m=1,
-            bcx=1,
-            bcy=-1,
+            bcx=-1,
+            bcy=1,
             T=0,
             dxmax=16,
             dymax=16,
@@ -349,6 +349,14 @@ class Params:
                                  [1,0,0,0],
                                  [0,0,0,-1],
                                  [0,0,1,0]])
+            # if s=='e+':
+            #     antidiag=[-1,-1,1,1]
+            #     blkmat=np.diag(antidiag)
+            #     blkmat=np.fliplr(blkmat)
+            # if s=='e-':
+            #     antidiag=[1,1,-1,-1]
+            #     blkmat=np.diag(antidiag)
+            #     blkmat=np.fliplr(blkmat)
             proj=np.zeros((8,8))
             proj[:4,:4]=blkmat
             proj[4:,4:]=blkmat.T
@@ -407,7 +415,7 @@ class Params:
             self.s_history = [s]
             self.i_history = [ix[0]]
 
-    def measure_all_Born(self, proj_range,prob=None,linear=False,type='onsite'):
+    def measure_all_Born(self, proj_range,prob=None,linear=False,type='onsite',pool=4):
         if not linear:
             if type=='onsite':
                 proj_range = self.linearize_index(proj_range, 4, proj=True)
@@ -417,7 +425,8 @@ class Params:
         # print(proj_range)
         self.P_0_list = []
         self.f_parity= []
-        self.covariance_matrix()
+        if not hasattr(self, 'C_m'):
+            self.covariance_matrix()
         if type=='onsite':
             for i in proj_range:
                 if prob is None:
@@ -438,12 +447,21 @@ class Params:
                 Gamma=self.C_m_history[-1][i:i+4,i:i+4]
                 P={}
                 gamma1234=-Gamma[0,1]*Gamma[2,3]+Gamma[0,2]*Gamma[1,3]-Gamma[0,3]*Gamma[1,2]
-                P['o+']=(1+Gamma[1,2]-Gamma[0,3]+gamma1234)/4
-                P['o-']=(1-Gamma[1,2]+Gamma[0,3]+gamma1234)/4
-                P['e+']=(1+Gamma[0,1]+Gamma[2,3]-gamma1234)/4
-                P['e-']=(1-Gamma[0,1]-Gamma[2,3]-gamma1234)/4
+                if prob is None:
+                    P['o+']=(1+Gamma[1,2]-Gamma[0,3]+gamma1234)/4
+                    P['o-']=(1-Gamma[1,2]+Gamma[0,3]+gamma1234)/4
+                    P['e+']=(1+Gamma[0,1]+Gamma[2,3]-gamma1234)/4
+                    P['e-']=(1-Gamma[0,1]-Gamma[2,3]-gamma1234)/4
+                else:
+                    P['o+'],P['o-'],P['e+'],P['e-']=tuple(prob)
+                #ignore symmetry
+                # P['e+']=(1+Gamma[1,2]+Gamma[0,3]-gamma1234)/4
+                # P['e-']=(1-Gamma[1,2]-Gamma[0,3]-gamma1234)/4
                 # print((P.values()))
-                s=np.random.choice(['o+','o-','e+','e-'],p=[P['o+'],P['o-'],P['e+'],P['e-']])
+                if pool==4:
+                    s=np.random.choice(['o+','o-','e+','e-'],p=[P['o+'],P['o-'],P['e+'],P['e-']])
+                elif pool==2:
+                    s=np.random.choice(['o+','o-'],p=[P['o+']/(P['o+']+P['o-']),P['o-']/(P['o+']+P['o-'])])
                 self.measure(s,[i,i+1,i+2,i+3],type='link')
             return self
 
