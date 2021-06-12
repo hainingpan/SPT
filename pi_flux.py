@@ -386,8 +386,9 @@ class Params:
         if not linear:
             if type=='onsite':
                 proj_range = self.linearize_index(proj_range, 8, proj=True)
-            if type=='link':
-                proj_range = self.linearize_index(proj_range, 8, proj=True,k=8)
+            if type=='link_2':
+                assert self.m==0, "Cannot perform link measurement 2, m ({:d})should be zero".format(self.m)
+                proj_range = self.linearize_index(proj_range, 8, proj=True,k=4)
         # self.proj_range=proj_range
         # print(proj_range)
         self.P_0_list = []
@@ -409,31 +410,30 @@ class Params:
                     self.f_parity.append(1)
             return self
 
-        if type=='link':
-            pass
-            # for i in proj_range:
-            #     Gamma=self.C_m_history[-1][i:i+4,i:i+4]
-            #     P={}
-            #     gamma1234=-Gamma[0,1]*Gamma[2,3]+Gamma[0,2]*Gamma[1,3]-Gamma[0,3]*Gamma[1,2]
-            #     if prob is None:
-            #         P['o+']=(1+Gamma[1,2]-Gamma[0,3]+gamma1234)/4
-            #         P['o-']=(1-Gamma[1,2]+Gamma[0,3]+gamma1234)/4
-            #         if not ignore:
-            #             P['e+']=(1+Gamma[0,1]+Gamma[2,3]-gamma1234)/4
-            #             P['e-']=(1-Gamma[0,1]-Gamma[2,3]-gamma1234)/4
-            #         else:
-            #             #ignore symmetry
-            #             P['e+']=(1+Gamma[1,2]+Gamma[0,3]-gamma1234)/4
-            #             P['e-']=(1-Gamma[1,2]-Gamma[0,3]-gamma1234)/4
-            #     else:
-            #         P['o+'],P['o-'],P['e+'],P['e-']=tuple(prob)
+        if type=='link_2':
+            for i in proj_range:
+                Gamma=self.C_m_history[-1][i:i+4,i:i+4]
+                P={}
+                gamma1234=-Gamma[0,1]*Gamma[2,3]+Gamma[0,2]*Gamma[1,3]-Gamma[0,3]*Gamma[1,2]
+                if prob is None:
+                    P['o+']=(1+Gamma[1,2]-Gamma[0,3]+gamma1234)/4
+                    P['o-']=(1-Gamma[1,2]+Gamma[0,3]+gamma1234)/4
+                    if not ignore:
+                        P['e+']=(1+Gamma[0,1]+Gamma[2,3]-gamma1234)/4
+                        P['e-']=(1-Gamma[0,1]-Gamma[2,3]-gamma1234)/4
+                    else:
+                        #ignore symmetry
+                        P['e+']=(1+Gamma[1,2]+Gamma[0,3]-gamma1234)/4
+                        P['e-']=(1-Gamma[1,2]-Gamma[0,3]-gamma1234)/4
+                else:
+                    P['o+'],P['o-'],P['e+'],P['e-']=tuple(prob)
 
-            #     # print((P.values()))
-            #     if pool==4:
-            #         s=np.random.choice(['o+','o-','e+','e-'],p=[P['o+'],P['o-'],P['e+'],P['e-']])
-            #     elif pool==2:
-            #         s=np.random.choice(['o+','o-'],p=[P['o+']/(P['o+']+P['o-']),P['o-']/(P['o+']+P['o-'])])
-            #     elif pool==-2:
-            #         s=np.random.choice(['e+','e-'],p=[P['e+']/(P['e+']+P['e-']),P['e-']/(P['e+']+P['e-'])])
-            #     self.measure(s,[i,i+1,i+2,i+3],type='link',ignore=ignore)
+                # print((P.values()))
+                if pool==4:
+                    s=np.random.choice(['o+','o-','e+','e-'],p=[P['o+'],P['o-'],P['e+'],P['e-']])
+                elif pool==2:
+                    s=np.random.choice(['o+','o-'],p=[P['o+']/(P['o+']+P['o-']),P['o-']/(P['o+']+P['o-'])])
+                elif pool==-2:
+                    s=np.random.choice(['e+','e-'],p=[P['e+']/(P['e+']+P['e-']),P['e-']/(P['e+']+P['e-'])])
+                self.measure(s,[i,i+1,i+2,i+3],type='link',ignore=ignore)
             return self
