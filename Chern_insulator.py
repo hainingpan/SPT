@@ -314,7 +314,7 @@ class Params:
         self.sA=sA
         return np.real(eA+sA)
 
-    def projection(self, s,type='onsite'):
+    def projection(self, s,type='onsite',ignore=False):
         '''
         For type:'onsite'
             occupancy number: s= 0,1 
@@ -339,31 +339,33 @@ class Params:
                 antidiag=[-1,1,-1,1]
                 blkmat=np.diag(antidiag)
                 blkmat=np.fliplr(blkmat)
-            if s=='e+':
-                blkmat=np.array([[0,-1,0,0],
-                                 [1,0,0,0],
-                                 [0,0,0,-1],
-                                 [0,0,1,0]])
-            if s=='e-':
-                blkmat=-np.array([[0,-1,0,0],
-                                 [1,0,0,0],
-                                 [0,0,0,-1],
-                                 [0,0,1,0]])
-            # if s=='e+':
-            #     antidiag=[-1,-1,1,1]
-            #     blkmat=np.diag(antidiag)
-            #     blkmat=np.fliplr(blkmat)
-            # if s=='e-':
-            #     antidiag=[1,1,-1,-1]
-            #     blkmat=np.diag(antidiag)
-            #     blkmat=np.fliplr(blkmat)
+            if not ignore:
+                if s=='e+':
+                    blkmat=np.array([[0,-1,0,0],
+                                    [1,0,0,0],
+                                    [0,0,0,-1],
+                                    [0,0,1,0]])
+                if s=='e-':
+                    blkmat=-np.array([[0,-1,0,0],
+                                    [1,0,0,0],
+                                    [0,0,0,-1],
+                                    [0,0,1,0]])
+            else:
+                if s=='e+':
+                    antidiag=[-1,-1,1,1]
+                    blkmat=np.diag(antidiag)
+                    blkmat=np.fliplr(blkmat)
+                if s=='e-':
+                    antidiag=[1,1,-1,-1]
+                    blkmat=np.diag(antidiag)
+                    blkmat=np.fliplr(blkmat)
             proj=np.zeros((8,8))
             proj[:4,:4]=blkmat
             proj[4:,4:]=blkmat.T
             return proj            
         raise ValueError("type '{}' is not defined".format(type))
 
-    def measure(self, s, ix,type='onsite'):
+    def measure(self, s, ix,type='onsite',ignore=False):
         if not hasattr(self, 'C_m'):
             self.covariance_matrix()
         if not hasattr(self, 's_history'):
@@ -383,7 +385,7 @@ class Params:
         Gamma_LR = mat[:-len(ix), -len(ix):]
         Gamma_RR = mat[-len(ix):, -len(ix):]
 
-        proj = self.projection(s,type=type)
+        proj = self.projection(s,type=type,ignore=ignore)
         Upsilon_LL = proj[:-len(ix), :-len(ix)]
         Upsilon_RR = proj[-len(ix):, -len(ix):]
         Upsilon_RL = proj[-len(ix):, :-len(ix)]
@@ -415,7 +417,7 @@ class Params:
             self.s_history = [s]
             self.i_history = [ix[0]]
 
-    def measure_all_Born(self, proj_range,prob=None,linear=False,type='onsite',pool=4):
+    def measure_all_Born(self, proj_range,prob=None,linear=False,type='onsite',pool=4,ignore=False):
         if not linear:
             if type=='onsite':
                 proj_range = self.linearize_index(proj_range, 4, proj=True)
@@ -450,13 +452,16 @@ class Params:
                 if prob is None:
                     P['o+']=(1+Gamma[1,2]-Gamma[0,3]+gamma1234)/4
                     P['o-']=(1-Gamma[1,2]+Gamma[0,3]+gamma1234)/4
-                    P['e+']=(1+Gamma[0,1]+Gamma[2,3]-gamma1234)/4
-                    P['e-']=(1-Gamma[0,1]-Gamma[2,3]-gamma1234)/4
+                    if not ignore:
+                        P['e+']=(1+Gamma[0,1]+Gamma[2,3]-gamma1234)/4
+                        P['e-']=(1-Gamma[0,1]-Gamma[2,3]-gamma1234)/4
+                    else:
+                        #ignore symmetry
+                        P['e+']=(1+Gamma[1,2]+Gamma[0,3]-gamma1234)/4
+                        P['e-']=(1-Gamma[1,2]-Gamma[0,3]-gamma1234)/4
                 else:
                     P['o+'],P['o-'],P['e+'],P['e-']=tuple(prob)
-                #ignore symmetry
-                # P['e+']=(1+Gamma[1,2]+Gamma[0,3]-gamma1234)/4
-                # P['e-']=(1-Gamma[1,2]-Gamma[0,3]-gamma1234)/4
+
                 # print((P.values()))
                 if pool==4:
                     s=np.random.choice(['o+','o-','e+','e-'],p=[P['o+'],P['o-'],P['e+'],P['e-']])
@@ -464,8 +469,15 @@ class Params:
                     s=np.random.choice(['o+','o-'],p=[P['o+']/(P['o+']+P['o-']),P['o-']/(P['o+']+P['o-'])])
                 elif pool==-2:
                     s=np.random.choice(['e+','e-'],p=[P['e+']/(P['e+']+P['e-']),P['e-']/(P['e+']+P['e-'])])
-                self.measure(s,[i,i+1,i+2,i+3],type='link')
+                self.measure(s,[i,i+1,i+2,i+3],type='link',ignore=ignore)
             return self
+
+    def fermion_number(self,type='C_m'):
+        if type=='C_m':
+            return 1/2*(1-np.diagonal(self.C_m_history[-1],1)[::2]).sum()
+        if type=='C_f':
+            return np.trace(self.C_f)
+
 
 def cross_ratio(x,L):
     if L<np.inf:
