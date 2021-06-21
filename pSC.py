@@ -40,12 +40,11 @@ class Params:
             onsitemat = np.eye(Lx*Ly)
             self.Hamiltonian = ((np.kron(hopxmat-hopxmat.T, self.sigmax)+np.kron(hopymat-hopymat.T, self.sigmay))* 1j*Delta-t*np.kron(hopxmat+hopxmat.T+hopymat+hopymat.T, self.sigmaz))/2+m*np.kron(onsitemat, self.sigmaz)
         elif Lx==np.inf and Ly==np.inf:
-            pass
-            # self.dxmax=dxmax
-            # self.dymax=dymax
-            # self.dx=lambda kx: Delta*np.sin(kx)
-            # self.dy=lambda ky: Delta*np.sin(ky)
-            # self.dz=lambda kx,ky: m-t*np.cos(kx)-t*np.cos(ky)
+            self.dxmax=dxmax
+            self.dymax=dymax
+            self.dx=lambda kx: Delta*np.sin(kx)
+            self.dy=lambda ky: Delta*np.sin(ky)
+            self.dz=lambda kx,ky: m-t*np.cos(kx)-t*np.cos(ky)
         else:
             raise ValueError('The size of system {:d,:d} is not supported.'.format(Lx,Ly))
 
@@ -56,18 +55,63 @@ class Params:
         self.vec = vec[:, sortindex]
 
     def fermi_dist_k(self,kx,ky,branch,E_F=0):
-        pass
-        # if self.T==0:
-        #     return np.heaviside(E_F-self.E_k(kx,ky,branch),0)
-        # else:
-        #     return 1/(1+np.exp((self.E_k(kx,ky,branch)-E_F)/self.T))
+        if self.T==0:
+            return np.heaviside(E_F-self.E_k(kx,ky,branch),0)
+        else:
+            return 1/(1+np.exp((self.E_k(kx,ky,branch)-E_F)/self.T))
 
     def fermi_dist(self, energy, E_F):
         if self.T == 0:
             return np.heaviside(E_F-energy, 0)
         else:
             return 1/(1+np.exp((energy-E_F)/self.T))
-    
+
+    def correlation_matrix_inf_fft(self,threshold=[1024,512]):
+        '''
+        self.dxmax/self.dymax: the maximal distance in x/y direction (in terms of unit cell) 
+        Directly call fft to evaluate the integral
+        '''
+        assert self.Lx==np.inf and self.Ly==np.inf, "Wire length should be inf"
+        # cov_mat=[]
+        Nxmax=max(2*self.dxmax,threshold[0])
+        Nymax=max(2*self.dymax,threshold[1])
+        if self.T>0:
+            pass    #to be filled
+        else:
+            kxlist=np.arange(0,2*np.pi,2*np.pi/Nxmax)
+            kylist=np.arange(0,2*np.pi,2*np.pi/Nymax)
+            kxmap,kymap=np.meshgrid(kxlist,kylist)
+            dxmap=self.dx(kxmap)
+            dymap=self.dy(kymap)
+            dzmap=self.dz(kxmap,kymap)
+            Ekmap=np.sqrt(dxmap**2+dymap**2+dzmap**2)
+            Ekxymap=np.sqrt(dxmap**2+dymap**2)
+            costheta=dzmap/Ekmap
+            sintheta=Ekxymap/Ekmap
+            Ekxymap[0,0]=np.inf #to avoid 0/0 in cos(phi) & sin(phi); the order of this line matters
+            cosphi=dxmap/Ekxymap
+            sinphi=dymap/Ekxymap
+            fftcostheta=np.fft.ifft2(costheta)
+            constmap=np.zeros((Nymax,Nxmax))
+            constmap[0,0]=0.5
+            A_11=constmap-fftcostheta/2
+            A_22=constmap+fftcostheta/2
+            A_12=np.fft.ifft2(-(cosphi-1j*sinphi)/2*sintheta)
+            A_21=np.fft.ifft2(-(cosphi+1j*sinphi)/2*sintheta)
+            mat=np.stack([[A_11,A_12],[A_21,A_22]])
+            C_f=np.zeros((2*self.dxmax*self.dymax,2*self.dxmax*self.dymax))*1j
+            for i in range(self.dxmax*self.dymax):
+                for j in range(i):
+                    ix,iy=i%self.dxmax,i//self.dxmax
+                    jx,jy=j%self.dxmax,j//self.dxmax
+                    dx,dy=(ix-jx)%Nxmax,(iy-jy)%Nymax
+                    C_f[2*i:2*i+2,2*j:2*j+2]=mat[:,:,dy,dx]
+            C_f=C_f+C_f.T.conj()
+            for i in range(self.dxmax*self.dymax):
+                C_f[2*i:2*i+2,2*i:2*i+2]=mat[:,:,0,0]
+            self.C_f=C_f
+
+
     def correlation_matrix(self, E_F=0):
         '''
         
@@ -116,8 +160,10 @@ class Params:
         subregion_y = np.array(subregion_y)
         X, Y = np.meshgrid(subregion_x, subregion_y)
         if self.Ly<np.inf:
+            assert subregion_x.max()<self.Lx and subregion_y.max()<self.Ly, '({:d},{:d}) exceed ({:d},{:d})'.format(subregion_x.max(),self.Lx,subregion_y.max(),self.Ly)
             linear_index = ((X+Y*self.Lx).flatten('F'))
         else:
+            assert subregion_x.max()<self.dxmax and subregion_y.max()<self.dymax, '({:f},{:f}) exceed ({:f},{:f})'.format(subregion_x.max(),(self.dxmax),subregion_y.max(),(self.dymax))
             linear_index = ((X+Y*self.dxmax).flatten('F'))
         if proj:
             return sorted(np.concatenate([n*linear_index+i for i in range(0, n, 2)]))
@@ -127,10 +173,8 @@ class Params:
     def square_index(self, subregion):
         subregion=np.unique(np.array(subregion)//2)
         if self.Lx<np.inf and self.Ly<np.inf:
-            assert subregion_x.max()<self.Lx and subregion_y.max()<self.Ly, 'Range exceeds'
             return subregion%self.Lx,subregion//self.Lx
         else:
-            assert subregion_x.max()<self.dxmax and subregion_y.max()<self.dymax, 'Range exceeds'
             return subregion%self.dxmax,subregion//self.dxmax
             
     def c_subregion_f(self, subregion, linear=True):

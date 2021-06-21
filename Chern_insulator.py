@@ -430,11 +430,15 @@ class Params:
         if not hasattr(self, 'C_m'):
             self.covariance_matrix()
         if type=='onsite':
-            for i in proj_range:
+            for index,i in enumerate(proj_range):
                 if prob is None:
                     P_0 = (self.C_m_history[-1][i, i+1]+1)/2    # Use Born rule
                 else:
-                    P_0=prob
+                    if isinstance(prob,list):
+                        assert len(prob)==len(proj_range), "len of prob {:d} not equal to len of proj_range {:d}".format(len(prob),len(proj_range))
+                        P_0=prob[index]
+                    else:    
+                        P_0=prob
                 self.P_0_list.append(P_0)
                 if np.random.rand() < P_0:
                     self.measure(0, [i, i+1])
@@ -448,8 +452,8 @@ class Params:
             for i in proj_range:
                 Gamma=self.C_m_history[-1][i:i+4,i:i+4]
                 P={}
-                gamma1234=-Gamma[0,1]*Gamma[2,3]+Gamma[0,2]*Gamma[1,3]-Gamma[0,3]*Gamma[1,2]
                 if prob is None:
+                    gamma1234=-Gamma[0,1]*Gamma[2,3]+Gamma[0,2]*Gamma[1,3]-Gamma[0,3]*Gamma[1,2]
                     P['o+']=(1+Gamma[1,2]-Gamma[0,3]+gamma1234)/4
                     P['o-']=(1-Gamma[1,2]+Gamma[0,3]+gamma1234)/4
                     if not ignore:
