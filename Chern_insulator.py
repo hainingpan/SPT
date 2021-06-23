@@ -476,11 +476,15 @@ class Params:
                 self.measure(s,[i,i+1,i+2,i+3],type='link',ignore=ignore)
             return self
 
-    def fermion_number(self,type='C_m'):
+    def fermion_number(self,proj_range,linear=False,type='C_m'):
         if type=='C_m':
-            return 1/2*(1-np.diagonal(self.C_m_history[-1],1)[::2]).sum()
+            if not linear:
+                proj_range = self.linearize_index(proj_range, 4, proj=True)
+            return 1/2*(1-np.diagonal(self.C_m_history[-1],1)[proj_range]).sum()
         if type=='C_f':
-            return np.trace(self.C_f)
+            if not linear:
+                proj_range = self.linearize_index(proj_range, 2, proj=True,k=2)
+            return np.trace(self.C_f[proj_range])
 
 
 def cross_ratio(x,L):
