@@ -25,9 +25,9 @@ if __name__=="__main__":
 
     m_list=np.linspace(1,3,args.num)
     es=args.es
-    LN_Born_list=[]
-    MI_Born_list=[]
-    outcome_Born_list=[]
+    LN_Born_link_list=[]
+    MI_Born_link_list=[]
+    outcome_Born_link_list=[]
     Lx,Ly=args.Lx,args.Ly
     executor=MPIPoolExecutor()
     ensemble_list_pool=[]
@@ -47,13 +47,13 @@ if __name__=="__main__":
             LN_ensemble_list.append(LN)
             outcome_ensemble_list.append(outcome)
         print('gather all m_i={:d}:{:.1f}'.format(m_i,time.time()-st))
-        MI_Born_list.append(MI_ensemble_list)
-        LN_Born_list.append(LN_ensemble_list)
-        outcome_Born_list.append(outcome_ensemble_list)
+        MI_Born_link_list.append(MI_ensemble_list)
+        LN_Born_link_list.append(LN_ensemble_list)
+        outcome_Born_link_list.append(outcome_ensemble_list)
     executor.shutdown()
-    MI_Born_list=np.array(MI_Born_list)
-    LN_Born_list=np.array(LN_Born_list)
-    outcome_Born_list=np.array(outcome_Born_list)
+    MI_Born_link_list=np.array(MI_Born_link_list)
+    LN_Born_link_list=np.array(LN_Born_link_list)
+    outcome_Born_link_list=np.array(outcome_Born_link_list)
     
-    with open('MI_LN_CI_Born_En{:d}_Lx{:d}_Ly{:d}.pickle'.format(args.es,args.Lx,args.Ly),'wb') as f:
-        pickle.dump([m_list,MI_Born_list,LN_Born_list,outcome_Born_list],f)
+    with open('MI_LN_CI_Born_link_En{:d}_Lx{:d}_Ly{:d}.pickle'.format(args.es,args.Lx,args.Ly),'wb') as f:
+        pickle.dump([m_list,MI_Born_link_list,LN_Born_link_list,outcome_Born_link_list],f)
