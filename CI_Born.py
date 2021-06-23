@@ -12,14 +12,14 @@ def run(p):
     LN=params.log_neg([np.arange(Lx//4),np.arange(Ly)],[np.arange(Lx//4)+Lx//2,np.arange(Ly)])
     MI=params.mutual_information_m([np.arange(Lx//4),np.arange(Ly)],[np.arange(Lx//4)+Lx//2,np.arange(Ly)])
     outcome=[np.sum(np.array(params.s_history)==s) for s in ['o+','o-','e+','e-']]
-    return MI,LN,outcome
+    return MI,LN,outcome,params.s_history
 
 if __name__=="__main__":
     parser=argparse.ArgumentParser()
     parser.add_argument('--Lx',default=128,type=int)
     parser.add_argument('--Ly',default=4,type=int)
     parser.add_argument('--es',default=1000,type=int)
-    parser.add_argument('--num',default=10,type=int)
+    parser.add_argument('--num',default=11,type=int)
 
     args=parser.parse_args()
 
@@ -28,6 +28,7 @@ if __name__=="__main__":
     LN_Born_link_list=[]
     MI_Born_link_list=[]
     outcome_Born_link_list=[]
+    s_history_Born_link_list=[]
     Lx,Ly=args.Lx,args.Ly
     executor=MPIPoolExecutor()
     ensemble_list_pool=[]
@@ -41,19 +42,23 @@ if __name__=="__main__":
         MI_ensemble_list=[]
         LN_ensemble_list=[]
         outcome_ensemble_list=[]
+        s_history_ensemble_list=[]
         for result in ensemble_list_pool[m_i]:
-            MI,LN,outcome=result
+            MI,LN,outcome,s_history=result
             MI_ensemble_list.append(MI)
             LN_ensemble_list.append(LN)
             outcome_ensemble_list.append(outcome)
+            s_history_ensemble_list.append(s_history)
+
         print('gather all m_i={:d}:{:.1f}'.format(m_i,time.time()-st))
         MI_Born_link_list.append(MI_ensemble_list)
         LN_Born_link_list.append(LN_ensemble_list)
         outcome_Born_link_list.append(outcome_ensemble_list)
+        s_history_Born_link_list.append(s_history_ensemble_list)
     executor.shutdown()
     MI_Born_link_list=np.array(MI_Born_link_list)
     LN_Born_link_list=np.array(LN_Born_link_list)
     outcome_Born_link_list=np.array(outcome_Born_link_list)
     
     with open('MI_LN_CI_Born_link_En{:d}_Lx{:d}_Ly{:d}.pickle'.format(args.es,args.Lx,args.Ly),'wb') as f:
-        pickle.dump([m_list,MI_Born_link_list,LN_Born_link_list,outcome_Born_link_list],f)
+        pickle.dump([m_list,MI_Born_link_list,LN_Born_link_list,outcome_Born_link_list,s_history_Born_link_list],f)
