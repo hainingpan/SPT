@@ -206,7 +206,7 @@ class Params:
         s_AB=self.von_Neumann_entropy_m(subregion_AB)
         return s_A+s_B-s_AB
 
-    def projection(self,s,type='onsite'):
+    def projection(self,s,type='onsite',ignore=False):
         '''
         For type:'onsite'
             occupancy number: s= 0,1 
@@ -224,16 +224,39 @@ class Params:
 
         if type=='link':
             assert (s in ['o+','o-','e+','e-']), "s={} for {} is not defined".format(s,type)
-            if s=='o+':
-                antidiag=[1,-1,1,-1]
-            if s=='o-':
-                antidiag=[-1,1,-1,1]
-            if s=='e+':
-                antidiag=[-1,-1,1,1]
-            if s=='e-':
-                antidiag=[1,1,-1,-1]
-            blkmat=np.diag(antidiag)
-            blkmat=np.fliplr(blkmat)
+            if not ignore:
+                if s=='o+':
+                    antidiag=[1,-1,1,-1]
+                if s=='o-':
+                    antidiag=[-1,1,-1,1]
+                if s=='e+':
+                    antidiag=[-1,-1,1,1]
+                if s=='e-':
+                    antidiag=[1,1,-1,-1]
+                blkmat=np.diag(antidiag)
+                blkmat=np.fliplr(blkmat)
+            else:
+                if s=='e+':
+                    blkmat=np.array([[0,-1,0,0],
+                                    [1,0,0,0],
+                                    [0,0,0,-1],
+                                    [0,0,1,0]])
+                if s=='e-':
+                    blkmat=-np.array([[0,-1,0,0],
+                                    [1,0,0,0],
+                                    [0,0,0,-1],
+                                    [0,0,1,0]])
+
+                
+                if s=='o+':
+                    antidiag=[1,-1,1,-1]
+                    blkmat=np.diag(antidiag)
+                    blkmat=np.fliplr(blkmat)
+                if s=='o-':
+                    antidiag=[-1,1,-1,1]
+                    blkmat=np.diag(antidiag)
+                    blkmat=np.fliplr(blkmat)
+
             proj=np.zeros((8,8))
             proj[:4,:4]=blkmat
             proj[4:,4:]=blkmat.T
@@ -242,7 +265,7 @@ class Params:
         raise ValueError("type '{}' is not defined".format(type))
         
 
-    def measure(self,s,ix,type='onsite'):
+    def measure(self,s,ix,type='onsite',ignore=False):
         if not hasattr(self,'C_m'):
             self.covariance_matrix()
         if not hasattr(self,'s_history'):
@@ -262,7 +285,7 @@ class Params:
         Gamma_LR=m[:-len(ix),-len(ix):]
         Gamma_RR=m[-len(ix):,-len(ix):]       
 
-        proj=self.projection(s,type=type)
+        proj=self.projection(s,type=type,ignore=ignore)
         Upsilon_LL=proj[:-len(ix),:-len(ix)]
         Upsilon_RR=proj[-len(ix):,-len(ix):]
         Upsilon_RL=proj[-len(ix):,:-len(ix)]
@@ -310,7 +333,7 @@ class Params:
             self.measure(s,[i,i+1])
         return self
 
-    def measure_all_Born(self,proj_range=None,type='onsite'):
+    def measure_all_Born(self,proj_range=None,type='onsite',ignore=False):
         if proj_range is None:
             if type=='onsite':
                 proj_range=np.arange(self.L,self.L*2,2)
@@ -331,14 +354,25 @@ class Params:
         if type=='link':
             for i in proj_range:
                 Gamma=self.C_m_history[-1][i:i+4,i:i+4]
+                gamma1234=-Gamma[0,1]*Gamma[2,3]+Gamma[0,2]*Gamma[1,3]-Gamma[0,3]*Gamma[1,2]
                 P={}
-                P['o+']=(1+Gamma[1,2])/2*(1-Gamma[0,3])/2
-                P['o-']=(1-Gamma[1,2])/2*(1+Gamma[0,3])/2
-                P['e+']=(1+Gamma[1,2])/2*(1+Gamma[0,3])/2
-                P['e-']=(1-Gamma[1,2])/2*(1-Gamma[0,3])/2
+                P['o+']=(1+Gamma[1,2]-Gamma[0,3]+gamma1234)/4
+                P['o-']=(1-Gamma[1,2]+Gamma[0,3]+gamma1234)/4
+                if not ignore:
+                    P['e+']=(1+Gamma[1,2]+Gamma[0,3]-gamma1234)/4
+                    P['e-']=(1-Gamma[1,2]-Gamma[0,3]-gamma1234)/4        
+                else:
+                        #ignore symmetry
+                    P['e+']=(1+Gamma[0,1]+Gamma[2,3]-gamma1234)/4
+                    P['e-']=(1-Gamma[0,1]-Gamma[2,3]-gamma1234)/4
+                        
+                # P['o+']=(1+Gamma[1,2])/2*(1-Gamma[0,3])/2
+                # P['o-']=(1-Gamma[1,2])/2*(1+Gamma[0,3])/2
+                # P['e+']=(1+Gamma[1,2])/2*(1+Gamma[0,3])/2
+                # P['e-']=(1-Gamma[1,2])/2*(1-Gamma[0,3])/2
                 # print((P.values()))
                 s=np.random.choice(['o+','o-','e+','e-'],p=[P['o+'],P['o-'],P['e+'],P['e-']])
-                self.measure(s,[i,i+1,i+2,i+3],type='link')
+                self.measure(s,[i,i+1,i+2,i+3],type='link',ignore=ignore)
             return self
 
         raise ValueError("type '{}' is not defined".format(type))
