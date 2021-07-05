@@ -65,7 +65,7 @@ if __name__=="__main__":
         print("Time elapsed for {:.4f}: {:.4f}".format(T,time.time()-st))
 
 
-    with open('MI_Born_En{:d}_T.pickle'.format(args.es),'wb') as f:
+    with open('MI_Born_En{:d}_L{:d}_T.pickle'.format(args.es,args.L),'wb') as f:
         # pickle.dump([delta_dict,mutual_info_dis_dict,log_neg_dis_dict,s_history_dis_dict],f)
         pickle.dump([delta_dict,log_neg_dis_dict,T_list],f)
     
