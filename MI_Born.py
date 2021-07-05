@@ -10,7 +10,7 @@ from mpi4py.futures import MPIPoolExecutor
 
 
 def mutual_info_run_MPI(T,es):
-    delta_list=np.linspace(-1,1,50)**3
+    delta_list=np.linspace(-1,1,50)
     mutual_info_dis_list=[]
     log_neg_dis_list=[]
     s_history_dis_list=[]
@@ -66,6 +66,6 @@ if __name__=="__main__":
 
     with open('MI_Born_En{:d}_T.pickle'.format(args.es),'wb') as f:
         # pickle.dump([delta_dict,mutual_info_dis_dict,log_neg_dis_dict,s_history_dis_dict],f)
-        pickle.dump([delta_dict,log_neg_dis_dict],f)
+        pickle.dump([delta_dict,log_neg_dis_dict,T_list],f)
     
    
