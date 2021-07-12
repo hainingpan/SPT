@@ -41,7 +41,7 @@ if __name__=="__main__":
         
     executor.shutdown()
 
-    with open('infT_SSH_{:s}.pickle'.format(args.type),'wb') as f:
+    with open('inf_T_SSH_{:s}.pickle'.format(args.type),'wb') as f:
         pickle.dump([LN_dict,E_mean],f)
     
 
