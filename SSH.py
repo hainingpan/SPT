@@ -12,10 +12,14 @@ class Params:
     T=0,
     dmax=100,
     bc=-1,
+    dE=None,
+    E0=None,
     history=True):
         self.L=L
         self.delta=delta
         self.T=T
+        self.dE=dE
+        self.E0=E0
         self.history=history
         if L<np.inf:
             self.v=1-delta
@@ -47,12 +51,28 @@ class Params:
         else:
             return 1/(1+np.exp((self.E_k(k,branch)-E_F)/self.T))
 
-
     def fermi_dist(self,energy,E_F):      
         if self.T==0:
             return np.heaviside(E_F-energy,0)
-        else:
+        elif self.T<np.inf:
             return 1/(1+np.exp((energy-E_F)/self.T)) 
+        else:
+            # occ=np.array([1]*64+[0]*64)
+            # occ[63],occ[64]=occ[64],occ[63]
+            # return occ
+
+            assert self.dE is not None, 'dE is unspecified when T is inf'
+            index=np.random.choice(np.arange(len(energy)),len(energy)//2,replace=False)
+            E_mean=np.sum(energy[index])/self.L
+            while np.abs(E_mean-self.E0)>self.dE:
+                index=np.random.choice(np.arange(len(energy)),len(energy)//2,replace=False)
+                E_mean=np.sum(energy[index])/self.L
+                # print(E_mean)
+            filt=np.zeros(len(energy),dtype=int)
+            filt[index]=1
+            self.index=index
+            self.E_mean=E_mean
+            return filt
 
 
     def correlation_matrix_inf(self):
@@ -404,6 +424,9 @@ class Params:
         chi=nla.eigvalsh(1j*Gamma[np.ix_(subregionAB,subregionAB)])
         sA=np.sum(np.log(((1+chi)/2)**2+((1-chi)/2)**2))/4
         return np.real(eA+sA)
+
+    def fermion_number(self):
+        return (1-np.diagonal(self.C_m_history[-1],1)[::2]).sum()/2
 
 
 def cross_ratio(x,L):
