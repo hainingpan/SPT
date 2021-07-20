@@ -16,7 +16,7 @@ def run(p):
     elif ty=='link':
         params.measure_all_Born(type='link')
     LN=params.log_neg(np.arange(L),np.arange(L)+2*L)
-    MI=params.log_neg(np.arange(L),np.arange(L)+2*L)
+    MI=params.mutual_information_m(np.arange(L),np.arange(L)+2*L)
     return MI,LN,params.E_mean
 
 if __name__=="__main__":   
