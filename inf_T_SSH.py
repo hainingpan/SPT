@@ -16,7 +16,8 @@ def run(p):
     elif ty=='link':
         params.measure_all_Born(type='link')
     LN=params.log_neg(np.arange(L),np.arange(L)+2*L)
-    return LN,params.E_mean
+    MI=params.log_neg(np.arange(L),np.arange(L)+2*L)
+    return MI,LN,params.E_mean
 
 if __name__=="__main__":   
     parser=argparse.ArgumentParser()
@@ -28,21 +29,24 @@ if __name__=="__main__":
     executor=MPIPoolExecutor()
     L_list=[16,32,64,96,128,128+64,256]
     LN_dict={}
+    MI_dict={}
     E_mean_dict={}
     for L in L_list:
         inputs=inputs=[(L,args.type) for _ in range(args.es)]
         pool=executor.map(run,inputs)
         LN_dict[L]=[]
+        MI_dict[L]=[]
         E_mean_dict[L]=[]
         for result in pool:
-            LN,E_mean=result
+            MI,LN,E_mean=result
             LN_dict[L].append(LN)
+            MI_dict[L].append(MI)
             E_mean_dict[L].append(E_mean)
         
     executor.shutdown()
 
     with open('inf_T_SSH_{:s}.pickle'.format(args.type),'wb') as f:
-        pickle.dump([LN_dict,E_mean_dict],f)
+        pickle.dump([MI_dict,LN_dict,E_mean_dict],f)
     
 
 
