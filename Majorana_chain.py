@@ -12,8 +12,12 @@ class Params:
     delta=0,    
     L=100,
     T=0,
-    bc=-1,    # 0: open boundary condition; >0: PBC; <0: APBC
-    basis='m'    # 'generate Hamiltonian of fermionic ('f') and Majorana basis ('m') or both ('mf')
+    bc=-1,    # 0: open boundary condition; +1: PBC; -1: APBC
+    basis='m',    # 'generate Hamiltonian of fermionic ('f') and Majorana basis ('m') or both ('mf')
+    dE=None,
+    E0=None,
+    kappa=0.5,
+    history=True
     ):
         self.delta=delta
         self.mu=2*(1-delta)
@@ -24,15 +28,25 @@ class Params:
         self.tau_y=np.array([[0,-1j],[1j,0]])
         self.bc=bc
         self.T=T
+        self.dE=dE
+        self.E0=E0
+        self.kappa=kappa
+        self.history=history
+        if self.T==np.inf:
+            self.once=0
         if 'f' in basis:
             band1sm=np.diag(np.ones(L-1),1)
-            band1sm[-1,0]=1*(2*np.heaviside(bc,1/2)-1)
+            band1sm[-1,0]=bc
             id_mat=np.eye(L)
             # Hamiltonian in the ferimion basis
-            self.Hamiltonian_f=np.block([[-self.mu*id_mat-self.t*(band1sm+band1sm.T),-self.Delta*(band1sm-band1sm.T)],
-                                        [self.Delta*(band1sm-band1sm.T),self.mu*id_mat+self.t*(band1sm+band1sm.T)]])
+            # self.Hamiltonian_f=np.block([[-self.mu*id_mat-self.t*(band1sm+band1sm.T),-self.Delta*(band1sm-band1sm.T)],
+            # [self.Delta*(band1sm-band1sm.T),self.mu*id_mat+self.t*(band1sm+band1sm.T)]])
             # BdG Hamiltonian back to original        
-            self.Hamiltonian_f/=2
+            # self.Hamiltonian_f/=2
+            A=-(1-delta)*id_mat+(1+delta)/2*(band1sm+band1sm.T)
+            B=-(1+delta)/2*(band1sm.T-band1sm)
+            self.Hamiltonian_f=np.block([[A,B],[-B,-A]])
+
 
         if 'm' in basis:    
             # Hamiltonian in the Majorana basis
@@ -57,12 +71,42 @@ class Params:
     def fermi_dist(self,energy,E_F):      
         if self.T==0:
             return np.heaviside(E_F-energy,0)
+        elif self.T<np.inf:
+            return 1/(1+np.exp((energy-E_F)/self.T))
         else:
-            return 1/(1+np.exp((energy-E_F)/self.T)) 
+            # occ=np.array([1]*64+[0]*64)
+            # occ[63],occ[64]=occ[64],occ[63]
+            # return occ
+
+            assert self.dE is not None, 'dE is unspecified when T is inf'
+            k=int(len(energy)*self.kappa)
+            if self.L%2==0:
+                index0=np.arange(0,self.L*2,2)
+            else:
+                index0=np.arange(1,self.L*2,2)
+            index=np.random.choice(index0,k//2,replace=False)
+            index=np.hstack((index,(index+1)%(2*self.L)))
+            E_mean=np.sum(energy[index])/self.L
+            while np.abs(E_mean-self.E0)>self.dE:
+                if self.L%2==0:
+                    index0=np.arange(0,self.L*2,2)
+                else:
+                    index0=np.arange(1,self.L*2,2)
+                index=np.random.choice(index0,k//2,replace=False)
+                index=np.hstack((index,(index+1)%(2*self.L)))
+                E_mean=np.sum(energy[index])/self.L
+                # print(Esum)
+            filt=np.zeros(len(energy),dtype=int)
+            filt[index]=1
+            self.filt=filt
+            self.index=index
+            self.E_mean=E_mean
+            return filt
 
 
     def correlation_matrix(self,E_F=0):
         '''
+        ??? may be wrong by a transpose
         G_{ij}=[[<f_i f_j^\dagger>,<f_i f_j>],
                 [<f_i^\dagger f_j^\dagger>,<f_i^\dagger f_j>]]
         '''
@@ -70,7 +114,8 @@ class Params:
             self.bandstructure('f')
         occupancy=self.fermi_dist(self.val_f,E_F)
         occupancy_mat=np.matlib.repmat(occupancy,self.vec_f.shape[0],1)
-        self.C_f=np.real((occupancy_mat*self.vec_f)@self.vec_f.T.conj())
+        # print('Max of imag {:.2f}'.format(np.abs((occupancy_mat*self.vec_f)@self.vec_f.T.conj()).max()))
+        self.C_f=((occupancy_mat*self.vec_f)@self.vec_f.T.conj())
 
     def covariance_matrix_f(self,E_F=0):
         '''
@@ -79,8 +124,13 @@ class Params:
         '''
         if not (hasattr(self,'C_f')):
             self.correlation_matrix(E_F)
-        G=self.C_f[self.L:,self.L:]
-        F=self.C_f[self.L:,:self.L]
+        # G=self.C_f[self.L:,self.L:]
+        # F=self.C_f[self.L:,:self.L]
+        G=self.C_f[:self.L,:self.L]
+        F=self.C_f[:self.L,self.L:]
+
+        self.G=G
+        self.F=F
         A11=1j*(F.T.conj()+F+G-G.T)
         A22=-1j*(F.T.conj()+F-G+G.T)
         A21=-(np.eye(F.shape[0])+F.T.conj()-F-G-G.T)
@@ -92,6 +142,8 @@ class Params:
         A[np.ix_(even,odd)]=A12
         A[np.ix_(odd,even)]=A21
         A[np.ix_(odd,odd)]=A22
+        assert np.abs(np.imag(A)).max()<1e-10, "Covariance matrix not real"
+        self.C_m=A
         self.C_m=np.real(A-A.T.conj())/2   
         self.C_m_history=[self.C_m]    
 
@@ -122,7 +174,7 @@ class Params:
         return blkmat
 
 
-    def measure(self,s,i,j):
+    def measure(self,s,ix):
         if not hasattr(self,'C_m'):
             self.covariance_matrix_m()
         if not hasattr(self,'s_history'):
@@ -131,29 +183,26 @@ class Params:
             self.i_history=[]
                 
         m=self.C_m_history[-1].copy()
-        # i<-> -2
-        m[[i,-2]]=m[[-2,i]]
-        m[:,[i,-2]]=m[:,[-2,i]]
-        # j<->-1
-        m[[j,-1]]=m[[-1,j]]
-        m[:,[j,-1]]=m[:,[-1,j]]
+
+        for i_ind,i in enumerate(ix):
+            m[[i,-(len(ix)-i_ind)]]=m[[-(len(ix)-i_ind),i]]
+            m[:,[i,-(len(ix)-i_ind)]]=m[:,[-(len(ix)-i_ind),i]]
 
         self.m=m
 
-        Gamma_LL=m[:-2,:-2]
-        Gamma_LR=m[:-2,-2:]
-        Gamma_RR=m[-2:,-2:]       
+        Gamma_LL=m[:-len(ix),:-len(ix)]
+        Gamma_LR=m[:-len(ix),-len(ix):]
+        Gamma_RR=m[-len(ix):,-len(ix):]       
 
         proj=self.projection(s)
-        Upsilon_LL=proj[:-2,:-2]
-        # Upsilon_LR=proj[:-2,-2:]
-        Upsilon_RR=proj[-2:,-2:]
-        Upsilon_RL=proj[-2:,:-2]
-        zero=np.zeros((self.L*2-2,2))
-        zero0=np.zeros((2,2))
+        Upsilon_LL=proj[:-len(ix),:-len(ix)]
+        Upsilon_RR=proj[-len(ix):,-len(ix):]
+        Upsilon_RL=proj[-len(ix):,:-len(ix)]
+        zero=np.zeros((m.shape[0]-len(ix),len(ix)))
+        zero0=np.zeros((len(ix),len(ix)))
         mat1=np.block([[Gamma_LL,zero],[zero.T,Upsilon_RR]])
         mat2=np.block([[Gamma_LR,zero],[zero0,Upsilon_RL]])
-        mat3=np.block([[Gamma_RR,np.eye(2)],[-np.eye(2),Upsilon_LL]])
+        mat3=np.block([[Gamma_RR,np.eye(len(ix))],[-np.eye(len(ix)),Upsilon_LL]])
         self.mat2=mat2
         if np.count_nonzero(mat2):
             Psi=mat1+mat2@(la.solve(mat3,mat2.T))
@@ -162,20 +211,23 @@ class Params:
         else:
             Psi=mat1
         
-        Psi[[j,-1]]=Psi[[-1,j]]
-        Psi[:,[j,-1]]=Psi[:,[-1,j]]
-
-        Psi[[i,-2]]=Psi[[-2,i]]
-        Psi[:,[i,-2]]=Psi[:,[-2,i]]
+        for i_ind,i in enumerate(ix):
+            Psi[[i,-(len(ix)-i_ind)]]=Psi[[-(len(ix)-i_ind),i]]
+            Psi[:,[i,-(len(ix)-i_ind)]]=Psi[:,[-(len(ix)-i_ind),i]]
         
         Psi=(Psi-Psi.T)/2   # Anti-symmetrize
-        self.C_m_history.append(Psi)
-        self.s_history.append(s)
-        self.i_history.append(i)
+        if self.history:
+            self.C_m_history.append(Psi)
+            self.s_history.append(s)
+            self.i_history.append(i)
+        else:
+            self.C_m_history=[Psi]
+            self.s_history=[s]
+            self.i_history=[i]
 
     def c_subregion_f(self,subregion):
         if not hasattr(self,'C'):
-            self.covariance_matrix_f()
+            self.correlation_matrix()
         try:
             subregion=np.array(subregion)
         except:
@@ -193,7 +245,7 @@ class Params:
 
     def c_subregion_m(self,subregion,Gamma=None):
         if not hasattr(self,'C_m'):
-            self.covariance_matrix_m()
+            self.covariance_matrix_f()
         if Gamma is None:
             Gamma=self.C_m_history[-1]
         try:
@@ -231,7 +283,7 @@ class Params:
         for _ in range(batchsize):
             i=np.random.randint(*proj_range)
             s=np.random.randint(0,2)
-            self.measure(s,i,i+1)
+            self.measure(s,[i,i+1])
         return self
 
     def measure_all(self,s_prob,proj_range=None):
@@ -247,7 +299,7 @@ class Params:
                 s=0
             else:           
                 s=s_prob<np.random.rand()
-            self.measure(s,i,i+1)
+            self.measure(s,[i,i+1])
         return self
     
     def generate_position_list(self,proj_range,s_prob):
@@ -275,7 +327,7 @@ class Params:
         assert len(proj_range) == len(s_list), 'Length of proj_range ({}) is not equal to the length of s_list ({})'.format(len(proj_range),len(s_list))
         for position,s in zip(proj_range,s_list):
             if s == 0 or s ==1:
-                self.measure(s,position,position+1)
+                self.measure(s,[position,position+1])
         return self
 
     def measure_all_Born(self,proj_range=None,order=None):
@@ -287,21 +339,22 @@ class Params:
             proj_range=np.concatenate((proj_range[::3],proj_range[1::3],proj_range[2::3]))
         if order=='e4':
             proj_range=np.concatenate((proj_range[::4],proj_range[1::4],proj_range[2::4]+proj_range[3::4]))
-
-        self.covariance_matrix_m()
+        self.P_0_list=[]
+        self.covariance_matrix_f()
         for i in proj_range:
             P_0=(self.C_m_history[-1][i,i+1]+1)/2
+            self.P_0_list.append(P_0)
             if np.random.rand() < P_0:                
-                self.measure(0,i,i+1)
+                self.measure(0,[i,i+1])
             else:
-                self.measure(1,i,i+1)
+                self.measure(1,[i,i+1])
         return self
 
     def measure_all_random(self,batchsize,proj_range):
         choice=np.random.choice(range(*proj_range),batchsize,replace=False)
         for i in choice:
             s=np.random.randint(0,2)
-            self.measure(s,i,i+1)  
+            self.measure(s,[i,i+1])  
         return self
 
 
@@ -313,13 +366,13 @@ class Params:
         choice=np.random.choice(range(*proj_range_even),batchsize,replace=False)
         for i in choice:
             s=np.random.randint(0,2)
-            self.measure(s,2*i,2*i+1)  
+            self.measure(s,[2*i,2*i+1])  
         return self
 
     def log_neg(self,subregionA,subregionB,Gamma=None):
         assert np.intersect1d(subregionA,subregionB).size==0 , "Subregion A and B overlap"
         if not hasattr(self,'C_m'):
-            self.covariance_matrix_m()
+            self.covariance_matrix_f()
         
         if Gamma is None:
             Gamma=self.C_m_history[-1]
@@ -344,22 +397,7 @@ class Params:
         sA=np.sum(np.log(((1+chi)/2)**2+((1-chi)/2)**2))/4
         return np.real(eA+sA)
 
-    # def CFT_correlator(self,x,type='both'):
-    #     assert type in ['MI','LN','both'], 'output type must be "MI" | "LN" |"both"'
-    #     xx=lambda i,j: (np.sin(np.pi/(2*self.L)*np.abs(x[i]-x[j])))
-    #     eta=(xx(0,1)*xx(2,3))/(xx(0,2)*xx(1,3))
-    #     subregionA=np.arange(x[0],x[1])
-    #     subregionB=np.arange(x[2],x[3])
-    #     if type=='both':
-    #         MI=self.mutual_information_m(subregionA,subregionB)
-    #         LN=self.log_neg(subregionA,subregionB)
-    #         return eta, MI,LN
-    #     if type=='MI':
-    #         MI=self.mutual_information_m(subregionA,subregionB)
-    #         return eta,MI
-    #     if type=='LN':
-    #         LN=self.log_neg(subregionA,subregionB)
-    #         return eta,LN        
+     
     
 def cross_ratio(x,L):
         xx=lambda i,j: (np.sin(np.pi/(L)*np.abs(x[i]-x[j])))
