@@ -16,16 +16,16 @@ def run(p):
     if ty!='no':
         if random:
             assert not Bp, 'Bp cannot be true while random is True'
-            proj_range_all=np.hstack([np.arange(0,L,2*(ty=='onsite')+4*(ty=='link'))+L,np.arange(0,L,2*(ty=='onsite')+4*(ty=='link'))+3*L])
-            proj_range=np.sort(np.random.choice(proj_range_all,proj_range_all.shape[0]//2,replace=False))
+            proj_range_all=np.hstack([np.arange(0,L//2,2*(ty=='onsite')+4*(ty=='link'))+L//2,np.arange(0,L//2,2*(ty=='onsite')+4*(ty=='link'))+3*L//2])
+            proj_range=np.sort(np.random.choice(proj_range_all,proj_range_all.shape[0],replace=False))
             params.measure_all_Born(type=ty,proj_range=proj_range)
         else:
             params.measure_all_Born(type=ty)
             if Bp:
-                params.measure_all_Born(proj_range=np.arange(L*3,L*4,2*(ty=='onsite')+4*(ty=='link')),type=ty)
+                params.measure_all_Born(proj_range=np.arange(L*3//2,L*2,2*(ty=='onsite')+4*(ty=='link')),type=ty)
         
-    LN=params.log_neg(np.arange(L),np.arange(L)+2*L)
-    MI=params.mutual_information_m(np.arange(L),np.arange(L)+2*L)
+    LN=params.log_neg(np.arange(L//2),np.arange(L//2)+L)
+    MI=params.mutual_information_m(np.arange(L//2),np.arange(L//2)+L)
     return MI,LN,params.E_mean
 
 if __name__=="__main__":   
