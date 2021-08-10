@@ -355,15 +355,14 @@ class Params:
         if type=='onsite':
             if proj_range is None:
                 proj_range=np.arange(self.L//2,self.L)
-            proj_range=self.linearize_index(proj_range,2,proj=True,k=2)
 
         if type=='link':
             if proj_range is None:
                 proj_range=np.arange(self.L//2,self.L,2)
-            proj_range=self.linearize_index(proj_range,4,proj=True,k=4)
+        proj_range=self.linearize_index(proj_range,2,proj=True,k=2)
 
-        # self.P_0_list=[]
-        self.covariance_matrix()
+        if not hasattr(self, 'C_m'):
+            self.covariance_matrix()
         if type=='onsite':
             for i in proj_range:
                 P_0=(self.C_m_history[-1][i,i+1]+1)/2

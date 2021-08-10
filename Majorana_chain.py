@@ -340,7 +340,8 @@ class Params:
         if order=='e4':
             proj_range=np.concatenate((proj_range[::4],proj_range[1::4],proj_range[2::4]+proj_range[3::4]))
         self.P_0_list=[]
-        self.covariance_matrix_f()
+        if not hasattr(self, 'C_m'):
+            self.covariance_matrix_m()
         for i in proj_range:
             P_0=(self.C_m_history[-1][i,i+1]+1)/2
             self.P_0_list.append(P_0)

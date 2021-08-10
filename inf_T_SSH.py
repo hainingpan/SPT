@@ -31,8 +31,6 @@ def run(p):
 if __name__=="__main__":   
     parser=argparse.ArgumentParser()
     parser.add_argument('--es',default=6,type=int)
-    # parser.add_argument('--Lmin',default=16,type=int)
-    # parser.add_argument('--Lmax',default=128,type=int)
     parser.add_argument('--type',default='no',type=str)
     parser.add_argument('--Bp',default=False,type=bool)
     parser.add_argument('--random',default=False,type=bool)
