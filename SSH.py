@@ -14,12 +14,14 @@ class Params:
     bc=-1,
     dE=None,
     E0=None,
+    kappa=0.5,
     history=True):
         self.L=L
         self.delta=delta
         self.T=T
         self.dE=dE
         self.E0=E0
+        self.kappa=kappa
         self.history=history
         if L<np.inf:
             self.v=1-delta
@@ -60,16 +62,21 @@ class Params:
             # occ=np.array([1]*64+[0]*64)
             # occ[63],occ[64]=occ[64],occ[63]
             # return occ
-
             assert self.dE is not None, 'dE is unspecified when T is inf'
-            index=np.random.choice(np.arange(len(energy)),len(energy)//2,replace=False)
+            k=int(len(energy)*self.kappa)
+            index=np.random.choice(np.arange(len(energy)),k,replace=False)
+            # index=np.random.choice(np.arange(len(energy)//2),k//2,replace=False)
             E_mean=np.sum(energy[index])/self.L
+            
             while np.abs(E_mean-self.E0)>self.dE:
-                index=np.random.choice(np.arange(len(energy)),len(energy)//2,replace=False)
+                index=np.random.choice(np.arange(len(energy)),k,replace=False)
+                # index=np.random.choice(np.arange(len(energy)//2),k//2,replace=False)
+                # print('{:f}'.format(E_mean))
                 E_mean=np.sum(energy[index])/self.L
                 # print(E_mean)
             filt=np.zeros(len(energy),dtype=int)
             filt[index]=1
+            # filt[L-index]=1
             self.index=index
             self.E_mean=E_mean
             return filt
@@ -191,15 +198,22 @@ class Params:
         val=np.sort(val)
         return np.real(-np.sum(val*np.log(val+1e-18j))-np.sum((1-val)*np.log(1-val+1e-18j)))
 
+    def linearize_index(self,subregion,n,k=2,proj=False):
+        try:
+            subregion=np.array(subregion)
+        except:
+            raise ValueError("The subregion is ill-defined"+subregion)
+        if proj:
+            return sorted(np.concatenate([n*subregion+i for i in range(0,n,k)]))
+        else:
+            return sorted(np.concatenate([n*subregion+i for i in range(n)]))
+
     def c_subregion_m(self,subregion,Gamma=None):
         if not hasattr(self,'C_m'):
             self.covariance_matrix()
         if Gamma is None:
             Gamma=self.C_m_history[-1]
-        try:
-            subregion=np.array(subregion)
-        except:
-            raise ValueError("The subregion is ill-defined"+subregion)
+        subregion=self.linearize_index(subregion,2)
         return Gamma[np.ix_(subregion,subregion)]
 
     def von_Neumann_entropy_m(self,subregion):
@@ -266,8 +280,6 @@ class Params:
                                     [1,0,0,0],
                                     [0,0,0,-1],
                                     [0,0,1,0]])
-
-                
                 if s=='o+':
                     antidiag=[1,-1,1,-1]
                     blkmat=np.diag(antidiag)
@@ -336,29 +348,19 @@ class Params:
             self.s_history=[s]
             self.i_history=[i]
 
- 
-    def measure_all(self,s_prob,proj_range=None):
-        '''
-        The probability of s=0 (unoccupied)
-        '''
-        if proj_range is None:
-            proj_range=np.arange(self.L,self.L*2,2)
-        for i in proj_range:
-            if s_prob==0:
-                s=1
-            elif s_prob==1:
-                s=0
-            else:           
-                s=s_prob<np.random.rand()
-            self.measure(s,[i,i+1])
-        return self
+
 
     def measure_all_Born(self,proj_range=None,type='onsite',ignore=False):
-        if proj_range is None:
-            if type=='onsite':
-                proj_range=np.arange(self.L,self.L*2,2)
-            if type=='link':
-                proj_range=np.arange(self.L,self.L*2,4)
+        # proj_range should be in the format of fermionic sites
+        if type=='onsite':
+            if proj_range is None:
+                proj_range=np.arange(self.L//2,self.L)
+            proj_range=self.linearize_index(proj_range,2,proj=True,k=2)
+
+        if type=='link':
+            if proj_range is None:
+                proj_range=np.arange(self.L//2,self.L,2)
+            proj_range=self.linearize_index(proj_range,4,proj=True,k=4)
 
         # self.P_0_list=[]
         self.covariance_matrix()
@@ -398,6 +400,8 @@ class Params:
         raise ValueError("type '{}' is not defined".format(type))
 
     def log_neg(self,subregionA,subregionB,Gamma=None):
+        subregionA=self.linearize_index(subregionA,2)
+        subregionB=self.linearize_index(subregionB,2)
         assert np.intersect1d(subregionA,subregionB).size==0 , "Subregion A and B overlap"
         if not hasattr(self,'C_m'):
             self.covariance_matrix()
