@@ -13,8 +13,8 @@ def run(p):
     params=Params(delta=0,L=L,T=np.inf,E0=0,dE=1,basis='f')
     if ty=='onsite':
         params.measure_all_Born()
-    LN=params.log_neg(np.arange(L//2),np.arange(L//2)+L)
-    MI=params.mutual_information_m(np.arange(L//2),np.arange(L//2)+L)
+    LN=params.log_neg(np.arange(L//4),np.arange(L//4)+L//2)
+    MI=params.mutual_information_m(np.arange(L//4),np.arange(L//4)+L//2)
     return MI,LN,params.E_mean
 
 if __name__=="__main__":   
