@@ -33,7 +33,7 @@ if __name__=="__main__":
     executor=MPIPoolExecutor()
     
     p_rate_list=np.array([0,.8,.9,.95,.97,1])
-    delta_list=np.linspace(-1,1,Nd)**3
+    delta_list=np.linspace(-1,1,args.Nd)**3
 
     MI_link_rate_list=np.zeros((p_rate_list.shape[0],delta_list.shape[0],args.es))
     LN_link_rate_list=np.zeros((p_rate_list.shape[0],delta_list.shape[0],args.es))
