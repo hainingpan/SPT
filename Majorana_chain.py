@@ -13,7 +13,7 @@ class Params:
     L=100,
     T=0,
     bc=-1,    # 0: open boundary condition; +1: PBC; -1: APBC
-    basis='m',    # 'generate Hamiltonian of fermionic ('f') and Majorana basis ('m') or both ('mf')
+    basis='f',    # 'generate Hamiltonian of fermionic ('f') and Majorana basis ('m') or both ('mf')
     dE=None,
     E0=None,
     kappa=0.5,
@@ -176,7 +176,7 @@ class Params:
 
     def measure(self,s,ix):
         if not hasattr(self,'C_m'):
-            self.covariance_matrix_m()
+            self.covariance_matrix_f()
         if not hasattr(self,'s_history'):
             self.s_history=[]
         if not hasattr(self,'i_history'):
@@ -242,16 +242,22 @@ class Params:
         val=np.sort(val)[:subregion.shape[0]]
         return np.real(-np.sum(val*np.log(val+1e-18j))-np.sum((1-val)*np.log(1-val+1e-18j)))
 
+    def linearize_index(self,subregion,n,k=2,proj=False):
+        try:
+            subregion=np.array(subregion)
+        except:
+            raise ValueError("The subregion is ill-defined"+subregion)
+        if proj:
+            return sorted(np.concatenate([n*subregion+i for i in range(0,n,k)]))
+        else:
+            return sorted(np.concatenate([n*subregion+i for i in range(n)]))
 
     def c_subregion_m(self,subregion,Gamma=None):
         if not hasattr(self,'C_m'):
             self.covariance_matrix_f()
         if Gamma is None:
             Gamma=self.C_m_history[-1]
-        try:
-            subregion=np.array(subregion)
-        except:
-            raise ValueError("The subregion is ill-defined"+subregion)
+        subregion=self.linearize_index(subregion,2)
         return Gamma[np.ix_(subregion,subregion)]
         
     def von_Neumann_entropy_m(self,subregion):
@@ -291,7 +297,8 @@ class Params:
         The probability of s=0 (unoccupied)
         '''
         if proj_range is None:
-            proj_range=np.arange(int(self.L/2),self.L,2)
+            proj_range=np.arange(self.L//4,self.L//2)
+        proj_range=self.linearize_index(proj_range,2,proj=True,k=2)
         for i in proj_range:
             if s_prob==0:
                 s=1
@@ -302,46 +309,48 @@ class Params:
             self.measure(s,[i,i+1])
         return self
     
-    def generate_position_list(self,proj_range,s_prob):
-        '''
-        proj_range: the list of first index of the specific projection operator 
-        return: a iterator for s=0
-        Generate position list, then feed into measure_list()
-        '''        
-        r=int(len(proj_range)*(s_prob))
-        index_all=range(len(proj_range))
-        index_s_0=itertools.combinations(index_all,r)
-        s_list_list=[]
-        for s_0 in index_s_0:
-            s_list=np.ones(len(proj_range),dtype=int)
-            s_list[list(s_0)]=0
-            s_list_list.append(s_list)
-        return s_list_list
+    # def generate_position_list(self,proj_range,s_prob):
+    #     '''
+    #     proj_range: the list of first index of the specific projection operator 
+    #     return: a iterator for s=0
+    #     Generate position list, then feed into measure_list()
+    #     '''        
+    #     r=int(len(proj_range)*(s_prob))
+    #     index_all=range(len(proj_range))
+    #     index_s_0=itertools.combinations(index_all,r)
+    #     s_list_list=[]
+    #     for s_0 in index_s_0:
+    #         s_list=np.ones(len(proj_range),dtype=int)
+    #         s_list[list(s_0)]=0
+    #         s_list_list.append(s_list)
+    #     return s_list_list
         
 
-    def measure_list(self,proj_range,s_list):
-        '''
-        proj_range: the list of first index of the specific projection operator
-        s_list: 0: emtpy; 1: filled; other: no measurement
-        '''
-        assert len(proj_range) == len(s_list), 'Length of proj_range ({}) is not equal to the length of s_list ({})'.format(len(proj_range),len(s_list))
-        for position,s in zip(proj_range,s_list):
-            if s == 0 or s ==1:
-                self.measure(s,[position,position+1])
-        return self
+    # def measure_list(self,proj_range,s_list):
+    #     '''
+    #     proj_range: the list of first index of the specific projection operator
+    #     s_list: 0: emtpy; 1: filled; other: no measurement
+    #     '''
+    #     assert len(proj_range) == len(s_list), 'Length of proj_range ({}) is not equal to the length of s_list ({})'.format(len(proj_range),len(s_list))
+    #     for position,s in zip(proj_range,s_list):
+    #         if s == 0 or s ==1:
+    #             self.measure(s,[position,position+1])
+    #     return self
 
     def measure_all_Born(self,proj_range=None,order=None):
+        # proj_range should be in the format of fermionic sites
         if proj_range is None:
-            proj_range=np.arange(int(self.L/2),self.L,2)
+            proj_range=np.arange(self.L//4,self.L//2)
         if order=='e2':
             proj_range=np.concatenate((proj_range[::2],proj_range[1::2]))
         if order=='e3':
             proj_range=np.concatenate((proj_range[::3],proj_range[1::3],proj_range[2::3]))
         if order=='e4':
             proj_range=np.concatenate((proj_range[::4],proj_range[1::4],proj_range[2::4]+proj_range[3::4]))
+        proj_range=self.linearize_index(proj_range,2,proj=True,k=2)
         self.P_0_list=[]
         if not hasattr(self, 'C_m'):
-            self.covariance_matrix_m()
+            self.covariance_matrix_f()
         for i in proj_range:
             P_0=(self.C_m_history[-1][i,i+1]+1)/2
             self.P_0_list.append(P_0)
@@ -351,26 +360,28 @@ class Params:
                 self.measure(1,[i,i+1])
         return self
 
-    def measure_all_random(self,batchsize,proj_range):
-        choice=np.random.choice(range(*proj_range),batchsize,replace=False)
-        for i in choice:
-            s=np.random.randint(0,2)
-            self.measure(s,[i,i+1])  
-        return self
+    # def measure_all_random(self,batchsize,proj_range):
+    #     choice=np.random.choice(range(*proj_range),batchsize,replace=False)
+    #     for i in choice:
+    #         s=np.random.randint(0,2)
+    #         self.measure(s,[i,i+1])  
+    #     return self
 
 
-    def measure_all_random_even(self,batchsize,proj_range):
-        '''
-        proj_range: (start,end) tuple
-        '''       
-        proj_range_even=[i//2 for i in proj_range]
-        choice=np.random.choice(range(*proj_range_even),batchsize,replace=False)
-        for i in choice:
-            s=np.random.randint(0,2)
-            self.measure(s,[2*i,2*i+1])  
-        return self
+    # def measure_all_random_even(self,batchsize,proj_range):
+    #     '''
+    #     proj_range: (start,end) tuple
+    #     '''       
+    #     proj_range_even=[i//2 for i in proj_range]
+    #     choice=np.random.choice(range(*proj_range_even),batchsize,replace=False)
+    #     for i in choice:
+    #         s=np.random.randint(0,2)
+    #         self.measure(s,[2*i,2*i+1])  
+    #     return self
 
     def log_neg(self,subregionA,subregionB,Gamma=None):
+        subregionA=self.linearize_index(subregionA,2)
+        subregionB=self.linearize_index(subregionB,2)
         assert np.intersect1d(subregionA,subregionB).size==0 , "Subregion A and B overlap"
         if not hasattr(self,'C_m'):
             self.covariance_matrix_f()
