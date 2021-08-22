@@ -58,7 +58,7 @@ if __name__=="__main__":
     for T in T_list:
         st=time.time()
         delta_dict[T],log_neg_dis_dict[T]=mutual_info_run_MPI(T,args.es,args.L,args.mtype)
-        print("Time elapsed for {:.4f}: {:.4f}".format(T,time.time()-st))
+        print("Time elapsed for {:.4f}: {:.4f}".format(T,time.time()-st),flush=True)
 
 
     with open('MI_Born_En{:d}_L{:d}_{:s}_T.pickle'.format(args.es,args.L,args.mtype),'wb') as f:
