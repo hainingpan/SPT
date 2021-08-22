@@ -15,6 +15,7 @@ class Params:
     dE=None,
     E0=None,
     kappa=0.5,
+    disorder=0,
     history=True):
         self.L=L
         self.delta=delta
@@ -28,8 +29,9 @@ class Params:
             self.w=1+delta
             self.bc=bc
             band=np.vstack([np.ones(L)*self.v,np.ones(L)*self.w]).flatten('F')
+            band=band+disorder
             Ham=np.diag(band[:-1],1)
-            Ham[0,-1]=self.w*bc
+            Ham[0,-1]=band[-1]*bc
             self.Hamiltonian=-(Ham+Ham.T)
         else:
             self.dmax=dmax

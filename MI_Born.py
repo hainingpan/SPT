@@ -10,7 +10,7 @@ from mpi4py.futures import MPIPoolExecutor
 
 
 def mutual_info_run_MPI(T,es,L,mtype):
-    delta_list=np.linspace(-1,1,50)
+    delta_list=np.linspace(0,1,26)
     mutual_info_dis_list=[]
     log_neg_dis_list=[]
     ensemblesize=es

@@ -387,7 +387,7 @@ class Params:
             if type=='onsite':
                 proj_range = self.linearize_index(proj_range, 8, proj=True)
             if type=='link_2':
-                assert self.m==0, "Cannot perform link measurement 2, m ({:d})should be zero".format(self.m)
+                # assert self.m==0, "Cannot perform link measurement 2, m ({:d})should be zero".format(self.m)
                 proj_range = self.linearize_index(proj_range, 8, proj=True,k=4)
         # self.proj_range=proj_range
         # print(proj_range)
@@ -396,11 +396,15 @@ class Params:
         if not hasattr(self, 'C_m'):
             self.covariance_matrix()
         if type=='onsite':
-            for i in proj_range:
+            for index,i in enumerate(proj_range):
                 if prob is None:
                     P_0 = (self.C_m_history[-1][i, i+1]+1)/2    # Use Born rule
                 else:
-                    P_0=prob
+                    if isinstance(prob,list):
+                        assert len(prob)==len(proj_range), "len of prob {:d} not equal to len of proj_range {:d}".format(len(prob),len(proj_range))
+                        P_0=prob[index]
+                    else:    
+                        P_0=prob
                 self.P_0_list.append(P_0)
                 if np.random.rand() < P_0:
                     self.measure(0, [i, i+1])
@@ -437,3 +441,6 @@ class Params:
                     s=np.random.choice(['e+','e-'],p=[P['e+']/(P['e+']+P['e-']),P['e-']/(P['e+']+P['e-'])])
                 self.measure(s,[i,i+1,i+2,i+3],type='link',ignore=ignore)
             return self
+
+        ValueError('No such type of measurement')
+        
