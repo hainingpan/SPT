@@ -255,11 +255,11 @@ class Params:
 
     def measure_all_Born(self,proj_range=None,type='onsite'):
         # proj_range should be in the format of fermionic sites
-        if type='onsite':
+        if type=='onsite':
             if proj_range is None:
                 proj_range=np.arange(self.L//4,self.L//2)
 
-        if type='link':
+        if type=='link':
             if proj_range is None:
                 proj_range=np.arange(self.L//4,self.L//2,2)
 
