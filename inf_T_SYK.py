@@ -21,7 +21,7 @@ def run(p):
             assert not Bp, 'Bp cannot be true while random is True'
             subA=np.arange(0,L//4,step)
             subAp=np.arange(0,L//4,step)+L//4
-            subB=np.arange(0,L//4,step)+L//4
+            subB=np.arange(0,L//4,step)+L//4*2
             subBp=np.arange(0,L//4,step)+L//4*3
             proj_range_all=np.hstack([subAp,subBp])
             proj_range=np.sort(np.random.choice(proj_range_all,proj_range_all.shape[0],replace=False))
