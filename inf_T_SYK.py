@@ -44,7 +44,7 @@ if __name__=="__main__":
     args=parser.parse_args()
     executor=MPIPoolExecutor()
     # L_list=[16,32,64,96,128,128+64,256]
-    L_list=[128,256]
+    L_list=[128*2,256*2]
     LN_0_dict={}
     MI_0_dict={}
     LN_dict={}
