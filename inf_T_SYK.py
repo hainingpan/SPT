@@ -29,7 +29,7 @@ def run(p):
         else:
             params.measure_all_Born(type=ty)
             if Bp:
-                params.measure_all_Born(proj_range=np.arange(L*3//2,L*2,step),type=ty)
+                params.measure_all_Born(proj_range=np.arange(L*3//4,L,step),type=ty)
         
     LN=params.log_neg(np.arange(L//4),np.arange(L//4)+L//2)
     MI=params.mutual_information_m(np.arange(L//4),np.arange(L//4)+L//2)
