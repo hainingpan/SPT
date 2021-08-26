@@ -262,7 +262,6 @@ class Params:
         if type=='link':
             if proj_range is None:
                 proj_range=np.arange(self.L//4,self.L//2,2)
-
         proj_range=self.linearize_index(proj_range,2,proj=True,k=2)
 
         if not hasattr(self, 'C_m'):
@@ -284,7 +283,15 @@ class Params:
                 P['o+']=(1+Gamma[1,2]-Gamma[0,3]+gamma1234)/4
                 P['o-']=(1-Gamma[1,2]+Gamma[0,3]+gamma1234)/4
                 P['e+']=(1+Gamma[1,2]+Gamma[0,3]-gamma1234)/4
-                P['e-']=(1-Gamma[1,2]-Gamma[0,3]-gamma1234)/4        
+                P['e-']=(1-Gamma[1,2]-Gamma[0,3]-gamma1234)/4   
+                assert P['o+']>-1e-12,'P[o+]={:e}'.format(P['o+'])     
+                assert P['o-']>-1e-12,'P[o-]={:e}'.format(P['o-'])     
+                assert P['e+']>-1e-12,'P[e+]={:e}'.format(P['e+'])     
+                assert P['e-']>-1e-12,'P[e-]={:e}'.format(P['e-'])  
+                P['o+']=max([0,P['o+']])
+                P['o-']=max([0,P['o-']])
+                P['e+']=max([0,P['e+']])
+                P['e-']=max([0,P['e-']])
                 s=np.random.choice(['o+','o-','e+','e-'],p=[P['o+'],P['o-'],P['e+'],P['e-']])
                 self.measure(s,[i,i+1,i+2,i+3],type='link')
             return self
