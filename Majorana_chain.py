@@ -12,6 +12,7 @@ class Params:
     delta=0,    
     L=100,
     T=0,
+    dmax=100,
     bc=-1,    # 0: open boundary condition; +1: PBC; -1: APBC
     basis='f',    # 'generate Hamiltonian of fermionic ('f') and Majorana basis ('m') or both ('mf')
     dE=None,
@@ -32,29 +33,30 @@ class Params:
         self.E0=E0
         self.kappa=kappa
         self.history=history
-        if self.T==np.inf:
-            self.once=0
-        if 'f' in basis:
-            band1sm=np.diag(np.ones(L-1),1)
-            band1sm[-1,0]=bc
-            id_mat=np.eye(L)
-            # Hamiltonian in the ferimion basis
-            # self.Hamiltonian_f=np.block([[-self.mu*id_mat-self.t*(band1sm+band1sm.T),-self.Delta*(band1sm-band1sm.T)],
-            # [self.Delta*(band1sm-band1sm.T),self.mu*id_mat+self.t*(band1sm+band1sm.T)]])
-            # BdG Hamiltonian back to original        
-            # self.Hamiltonian_f/=2
-            A=-(1-delta)*id_mat+(1+delta)/2*(band1sm+band1sm.T)
-            B=-(1+delta)/2*(band1sm.T-band1sm)
-            self.Hamiltonian_f=np.block([[A,B],[-B,-A]])
 
+        if L<np.inf:
+            if 'f' in basis:
+                band1sm=np.diag(np.ones(L-1),1)
+                band1sm[-1,0]=bc
+                id_mat=np.eye(L)
+                # Hamiltonian in the ferimion basis
+                # self.Hamiltonian_f=np.block([[-self.mu*id_mat-self.t*(band1sm+band1sm.T),-self.Delta*(band1sm-band1sm.T)],
+                # [self.Delta*(band1sm-band1sm.T),self.mu*id_mat+self.t*(band1sm+band1sm.T)]])
+                # BdG Hamiltonian back to original        
+                # self.Hamiltonian_f/=2
+                A=-(1-delta)*id_mat+(1+delta)/2*(band1sm+band1sm.T)
+                B=-(1+delta)/2*(band1sm.T-band1sm)
+                self.Hamiltonian_f=np.block([[A,B],[-B,-A]])
 
-        if 'm' in basis:    
-            # Hamiltonian in the Majorana basis
-            band=np.vstack([np.ones(L)*(1-delta)*1j,np.ones(L)*(1+delta)*1j]).flatten('F')
-            Ham=np.diag(band[:-1],-1)
-            Ham[0,-1]=(1+delta)*1j*bc
-            Ham=Ham+Ham.conj().T
-            self.Hamiltonian_m=Ham
+            if 'm' in basis:    
+                # Hamiltonian in the Majorana basis
+                band=np.vstack([np.ones(L)*(1-delta)*1j,np.ones(L)*(1+delta)*1j]).flatten('F')
+                Ham=np.diag(band[:-1],-1)
+                Ham[0,-1]=(1+delta)*1j*bc
+                Ham=Ham+Ham.conj().T
+                self.Hamiltonian_m=Ham
+        else:
+            self.dmax=dmax
 
     def bandstructure(self,basis='mf'):
         if 'f' in basis:    
@@ -66,7 +68,21 @@ class Params:
             val,vec=nla.eigh(self.Hamiltonian_m) 
             sortindex=np.argsort(val)
             self.val_m=val[sortindex]
-            self.vec_m=vec[:,sortindex]       
+            self.vec_m=vec[:,sortindex]    
+    
+    def E_k(self,k,branch):
+        return branch*np.sqrt(2+2*self.delta**2-2*(1-self.delta**2)*np.cos(k))
+
+    def fermi_dist_k(self,k,branch,E_F=0):
+        if self.T==0:
+            # return np.heaviside(E_F-self.E_k(k,branch),0)
+            if branch==1:
+                return 0*k
+            if branch==-1:
+                return 1-0*k
+            ValueError('branch (%d) not defined'.format(branch))
+        else:
+            return 1/(1+np.exp((self.E_k(k,branch)-E_F)/self.T))
 
     def fermi_dist(self,energy,E_F):      
         if self.T==0:
@@ -74,9 +90,6 @@ class Params:
         elif self.T<np.inf:
             return 1/(1+np.exp((energy-E_F)/self.T))
         else:
-            # occ=np.array([1]*64+[0]*64)
-            # occ[63],occ[64]=occ[64],occ[63]
-            # return occ
 
             assert self.dE is not None, 'dE is unspecified when T is inf'
             k=int(len(energy)*self.kappa)
@@ -117,17 +130,65 @@ class Params:
         # print('Max of imag {:.2f}'.format(np.abs((occupancy_mat*self.vec_f)@self.vec_f.T.conj()).max()))
         self.C_f=((occupancy_mat*self.vec_f)@self.vec_f.T.conj())
 
+    def correlation_matrix_inf_fft(self,threshold=1024):
+        '''
+        self.dmax: the maximal distance (in terms of unit cell) 
+        Directly call fft to evaluate the integral
+        '''
+        assert self.L==np.inf, "Wire length should be inf"
+        d=max(2*self.dmax,threshold)
+        k_list=np.arange(0,2*np.pi,2*np.pi/d)
+        fermi_dist_k_p=self.fermi_dist_k(np.arange(0,2*np.pi,2*np.pi/d),1)
+        fermi_dist_k_m=self.fermi_dist_k(np.arange(0,2*np.pi,2*np.pi/d),-1)
+
+        costheta=1/2*(-self.mu-2*np.cos(k_list)*self.t)/(self.E_k(k_list,1)+1e-18)
+        sintheta=-1/2*(2*self.Delta*np.sin(k_list))/(self.E_k(k_list,1)+1e-18)
+        integrand_11=fermi_dist_k_m*(1-costheta)/2+fermi_dist_k_p*(1+costheta)/2
+        integrand_22=fermi_dist_k_m*(1+costheta)/2+fermi_dist_k_p*(1-costheta)/2
+        integrand_12=fermi_dist_k_m*(1j/2)*sintheta+fermi_dist_k_p*(-1j/2)*sintheta
+        integrand_21=fermi_dist_k_m*(-1j/2)*sintheta+fermi_dist_k_p*(1j/2)*sintheta
+
+        A_11=np.fft.ifftshift(np.fft.ifft(integrand_11))
+        A_22=np.fft.ifftshift(np.fft.ifft(integrand_22))
+        A_12=np.fft.ifftshift(np.fft.ifft(integrand_12))
+        A_21=np.fft.ifftshift(np.fft.ifft(integrand_21))
+
+        C_f_11=np.zeros((self.dmax,self.dmax),dtype=complex)
+        C_f_22=np.zeros((self.dmax,self.dmax),dtype=complex)
+        C_f_12=np.zeros((self.dmax,self.dmax),dtype=complex)
+        C_f_21=np.zeros((self.dmax,self.dmax),dtype=complex)
+        for i in range(self.dmax):
+            C_f_11[i]=A_11[d//2-i:d//2+self.dmax-i]
+            C_f_22[i]=A_22[d//2-i:d//2+self.dmax-i]
+            C_f_12[i]=A_12[d//2-i:d//2+self.dmax-i]
+            C_f_21[i]=A_21[d//2-i:d//2+self.dmax-i]
+
+        C_f=np.block([[C_f_11,C_f_12],[C_f_21,C_f_22]])
+        C_f_err=np.imag(C_f).__abs__().max()
+        assert C_f_err<1e-12, 'C_f not real; the max imag is {:e}'.format(C_f_err)
+        self.C_f=np.real(C_f)
+
+
     def covariance_matrix_f(self,E_F=0):
         '''
         Gamma from fermionic basis
         Gamma_ij=i<gamma_i gamma_j>/2
         '''
         if not (hasattr(self,'C_f')):
-            self.correlation_matrix(E_F)
+            if self.L<np.inf:
+                self.correlation_matrix(E_F)
+            else:
+                self.correlation_matrix_inf_fft()
+
         # G=self.C_f[self.L:,self.L:]
         # F=self.C_f[self.L:,:self.L]
-        G=self.C_f[:self.L,:self.L]
-        F=self.C_f[:self.L,self.L:]
+        if self.L<np.inf:
+            G=self.C_f[:self.L,:self.L]
+            # F=self.C_f[:self.L,self.L:]
+            F=self.C_f[self.L:,:self.L]
+        else:
+            G=self.C_f[:self.dmax,:self.dmax]
+            F=self.C_f[self.dmax:,:self.dmax]
 
         self.G=G
         self.F=F
@@ -135,13 +196,21 @@ class Params:
         A22=-1j*(F.T.conj()+F-G+G.T)
         A21=-(np.eye(F.shape[0])+F.T.conj()-F-G-G.T)
         A12=-A21.T
-        A=np.zeros((2*self.L,2*self.L),dtype=complex)
-        even=np.arange(2*self.L)[::2]
-        odd=np.arange(2*self.L)[1::2]
-        A[np.ix_(even,even)]=A11
-        A[np.ix_(even,odd)]=A12
-        A[np.ix_(odd,even)]=A21
-        A[np.ix_(odd,odd)]=A22
+        if self.L<np.inf:
+            A=np.zeros((2*self.L,2*self.L),dtype=complex)
+        else:
+            A=np.zeros((2*self.dmax,2*self.dmax),dtype=complex)
+        # even=np.arange(2*self.L)[::2]
+        # odd=np.arange(2*self.L)[1::2]
+        # A[np.ix_(even,even)]=A11
+        # A[np.ix_(even,odd)]=A12
+        # A[np.ix_(odd,even)]=A21
+        # A[np.ix_(odd,odd)]=A22
+        A[::2,::2]=A11
+        A[::2,1::2]=A12
+        A[1::2,::2]=A21
+        A[1::2,1::2]=A22
+
         assert np.abs(np.imag(A)).max()<1e-10, "Covariance matrix not real"
         self.C_m=A
         self.C_m=np.real(A-A.T.conj())/2   
@@ -309,33 +378,7 @@ class Params:
             self.measure(s,[i,i+1])
         return self
     
-    # def generate_position_list(self,proj_range,s_prob):
-    #     '''
-    #     proj_range: the list of first index of the specific projection operator 
-    #     return: a iterator for s=0
-    #     Generate position list, then feed into measure_list()
-    #     '''        
-    #     r=int(len(proj_range)*(s_prob))
-    #     index_all=range(len(proj_range))
-    #     index_s_0=itertools.combinations(index_all,r)
-    #     s_list_list=[]
-    #     for s_0 in index_s_0:
-    #         s_list=np.ones(len(proj_range),dtype=int)
-    #         s_list[list(s_0)]=0
-    #         s_list_list.append(s_list)
-    #     return s_list_list
-        
-
-    # def measure_list(self,proj_range,s_list):
-    #     '''
-    #     proj_range: the list of first index of the specific projection operator
-    #     s_list: 0: emtpy; 1: filled; other: no measurement
-    #     '''
-    #     assert len(proj_range) == len(s_list), 'Length of proj_range ({}) is not equal to the length of s_list ({})'.format(len(proj_range),len(s_list))
-    #     for position,s in zip(proj_range,s_list):
-    #         if s == 0 or s ==1:
-    #             self.measure(s,[position,position+1])
-    #     return self
+   
 
     def measure_all_Born(self,proj_range=None,order=None):
         # proj_range should be in the format of fermionic sites
@@ -360,24 +403,6 @@ class Params:
                 self.measure(1,[i,i+1])
         return self
 
-    # def measure_all_random(self,batchsize,proj_range):
-    #     choice=np.random.choice(range(*proj_range),batchsize,replace=False)
-    #     for i in choice:
-    #         s=np.random.randint(0,2)
-    #         self.measure(s,[i,i+1])  
-    #     return self
-
-
-    # def measure_all_random_even(self,batchsize,proj_range):
-    #     '''
-    #     proj_range: (start,end) tuple
-    #     '''       
-    #     proj_range_even=[i//2 for i in proj_range]
-    #     choice=np.random.choice(range(*proj_range_even),batchsize,replace=False)
-    #     for i in choice:
-    #         s=np.random.randint(0,2)
-    #         self.measure(s,[2*i,2*i+1])  
-    #     return self
 
     def log_neg(self,subregionA,subregionB,Gamma=None):
         subregionA=self.linearize_index(subregionA,2)
@@ -415,3 +440,12 @@ def cross_ratio(x,L):
         xx=lambda i,j: (np.sin(np.pi/(L)*np.abs(x[i]-x[j])))
         eta=(xx(0,1)*xx(2,3))/(xx(0,2)*xx(1,3))
         return eta
+
+from scipy.interpolate import UnivariateSpline
+def find_inflection(x,y):
+    spl=UnivariateSpline(x,y,s=0)
+    spld=spl.derivative()
+    x_fit=np.linspace(x.min(),x.max(),500)
+    y_fit=spld(x_fit)    
+    # return x_fit,y_fit
+    return x_fit[np.argmax(np.abs(y_fit))]
