@@ -446,6 +446,7 @@ def find_inflection(x,y):
     spl=UnivariateSpline(x,y,s=0)
     spld=spl.derivative()
     x_fit=np.linspace(x.min(),x.max(),500)
-    y_fit=spld(x_fit)    
-    # return x_fit,y_fit
-    return x_fit[np.argmax(np.abs(y_fit))]
+    y_fit=spl(x_fit)
+    yd_fit=spld(x_fit)    
+    x_max_index=np.argmax(np.abs(yd_fit))
+    return x_fit[x_max_index],y_fit[x_max_index]
