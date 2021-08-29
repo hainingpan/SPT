@@ -206,7 +206,7 @@ class Params:
         except:
             raise ValueError("The subregion is ill-defined"+subregion)
         if proj:
-            return sorted(np.concatenate([n*subregion+i for i in range(0,n,k)]))
+            return sorted(np.concatenate([(n*subregion+i) for i in range(0,n,k)]))
         else:
             return sorted(np.concatenate([n*subregion+i for i in range(n)]))
 
@@ -352,7 +352,7 @@ class Params:
 
 
 
-    def measure_all_Born(self,proj_range=None,type='onsite',ignore=False):
+    def measure_all_Born(self,proj_range=None,type='onsite',ignore=False,prob=None):
         # proj_range should be in the format of fermionic sites
         if type=='onsite':
             if proj_range is None:
@@ -366,8 +366,16 @@ class Params:
         if not hasattr(self, 'C_m'):
             self.covariance_matrix()
         if type=='onsite':
-            for i in proj_range:
-                P_0=(self.C_m_history[-1][i,i+1]+1)/2
+            for index,i in enumerate(proj_range):
+                # P_0=(self.C_m_history[-1][i,i+1]+1)/2
+                if prob is None:
+                    P_0 = (self.C_m_history[-1][i, i+1]+1)/2    # Use Born rule
+                else:
+                    if isinstance(prob,list):
+                        assert len(prob)==len(proj_range), "len of prob {:d} not equal to len of proj_range {:d}".format(len(prob),len(proj_range))
+                        P_0=prob[index]
+                    else:    
+                        P_0=prob
                 # self.P_0_list.append(P_0)
                 if np.random.rand() < P_0:                
                     self.measure(0,[i,i+1])
@@ -377,23 +385,36 @@ class Params:
         if type=='link':
             for i in proj_range:
                 Gamma=self.C_m_history[-1][i:i+4,i:i+4]
-                gamma1234=-Gamma[0,1]*Gamma[2,3]+Gamma[0,2]*Gamma[1,3]-Gamma[0,3]*Gamma[1,2]
                 P={}
-                P['o+']=(1+Gamma[1,2]-Gamma[0,3]+gamma1234)/4
-                P['o-']=(1-Gamma[1,2]+Gamma[0,3]+gamma1234)/4
-                if not ignore:
-                    P['e+']=(1+Gamma[1,2]+Gamma[0,3]-gamma1234)/4
-                    P['e-']=(1-Gamma[1,2]-Gamma[0,3]-gamma1234)/4        
+                if prob is None:
+                    gamma1234=-Gamma[0,1]*Gamma[2,3]+Gamma[0,2]*Gamma[1,3]-Gamma[0,3]*Gamma[1,2]
+                    P['o+']=(1+Gamma[1,2]-Gamma[0,3]+gamma1234)/4
+                    P['o-']=(1-Gamma[1,2]+Gamma[0,3]+gamma1234)/4
+                    if not ignore:
+                        P['e+']=(1+Gamma[1,2]+Gamma[0,3]-gamma1234)/4
+                        P['e-']=(1-Gamma[1,2]-Gamma[0,3]-gamma1234)/4        
+                    else:
+                            #ignore symmetry
+                        P['e+']=(1+Gamma[0,1]+Gamma[2,3]-gamma1234)/4
+                        P['e-']=(1-Gamma[0,1]-Gamma[2,3]-gamma1234)/4
                 else:
-                        #ignore symmetry
-                    P['e+']=(1+Gamma[0,1]+Gamma[2,3]-gamma1234)/4
-                    P['e-']=(1-Gamma[0,1]-Gamma[2,3]-gamma1234)/4
+                    P['o+'],P['o-'],P['e+'],P['e-']=tuple(prob)
+
                         
                 # P['o+']=(1+Gamma[1,2])/2*(1-Gamma[0,3])/2
                 # P['o-']=(1-Gamma[1,2])/2*(1+Gamma[0,3])/2
                 # P['e+']=(1+Gamma[1,2])/2*(1+Gamma[0,3])/2
                 # P['e-']=(1-Gamma[1,2])/2*(1-Gamma[0,3])/2
                 # print((P.values()))
+
+                assert P['o+']>-1e-12,'P[o+]={:e}'.format(P['o+'])     
+                assert P['o-']>-1e-12,'P[o-]={:e}'.format(P['o-'])     
+                assert P['e+']>-1e-12,'P[e+]={:e}'.format(P['e+'])     
+                assert P['e-']>-1e-12,'P[e-]={:e}'.format(P['e-'])  
+                P['o+']=max([0,P['o+']])
+                P['o-']=max([0,P['o-']])
+                P['e+']=max([0,P['e+']])
+                P['e-']=max([0,P['e-']])
                 s=np.random.choice(['o+','o-','e+','e-'],p=[P['o+'],P['o-'],P['e+'],P['e-']])
                 self.measure(s,[i,i+1,i+2,i+3],type='link',ignore=ignore)
             return self
