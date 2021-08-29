@@ -59,6 +59,6 @@ if __name__=="__main__":
     MI_Born_list=np.array(MI_Born_list)
     LN_Born_list=np.array(LN_Born_list)
     bandstructure_list=np.array(bandstructure_list)
-    with open('SSH_disorder.pickle'.format(),'wb') as f:
+    with open('SSH_disorder_L{:d}_var{:d}.pickle'.format(L,var),'wb') as f:
         pickle.dump([delta_list,MI_Born_list,LN_Born_list,disorder,bandstructure_list],f)
 
