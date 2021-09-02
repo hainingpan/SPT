@@ -41,13 +41,17 @@ if __name__=="__main__":
         eta_Born_list=[]
         LN_Born_list=[]
         for _ in range(ps):
-            x=sorted(2*np.random.choice(np.arange(1,L),3,replace=False))
-            x=[0]+x
-            subregionA=np.arange(x[0],x[1])
-            subregionB=np.arange(x[2],x[3])
-            subregionAp=np.arange(x[1],x[2],2)
-            eta=cross_ratio(x,2*L)
-            inputs=[(subregionA,subregionB,subregionAp,L,disorder) for _ in range(es)]
+            x=sorted(2*np.random.choice(np.arange(0,L),4,replace=False))
+            subregion=[]
+            subregion.append(np.arange(x[0],x[1]))
+            subregion.append(np.arange(x[2],x[3]))
+            subregion.append(np.arange(x[1],x[2]))
+            subregion.append(np.hstack([np.arange(x[3],2*L),np.arange(0,x[0])]))
+            proj_start=np.random.choice(np.arange(4),1).item()
+            proj_index=np.arange(proj_start,proj_start+4)%4
+
+            eta=cross_ratio([x[index] for index in proj_index],2*L)
+            inputs=[(subregion[proj_index[0]],subregion[proj_index[2]],subregion[proj_index[1]][::2],L,disorder) for _ in range(es)]
             pool=executor.map(run,inputs)
             LN_ensemble_list=[]
             for _,result in enumerate(pool):
