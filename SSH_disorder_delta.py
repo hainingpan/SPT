@@ -9,9 +9,10 @@ from copy import copy
 import time
 
 def run(p):
-    subregionA,subregionB,subregionAp,L,disorder,delta=p
+    subregionA,subregionB,subregionAp,L,disorder,delta,type=p
     params=Params(delta=delta,L=L,bc=-1,disorder=disorder)
-    params.measure_all_Born(subregionAp,type='link')
+    if type=='link':
+        params.measure_all_Born(subregionAp,type='link')
     return params.log_neg(subregionA,subregionB)
 
 if __name__=="__main__":  
@@ -22,6 +23,7 @@ if __name__=="__main__":
     parser.add_argument('--ds',default=1,type=int)
     parser.add_argument('--ps',default=100,type=int)
     parser.add_argument('--var',default=0,type=float)
+    parser.add_argument('--type',default='',type=str)
 
     args=parser.parse_args()
     executor=MPIPoolExecutor()
@@ -34,6 +36,7 @@ if __name__=="__main__":
     ps=args.ps
     ds=args.ds
     L=args.L
+    type=args.type
     var=args.var
     for disorder_index in range(ds):
         disorder=(np.random.normal(loc=0,scale=var,size=L*2))
@@ -63,7 +66,7 @@ if __name__=="__main__":
             proj_index=np.arange(proj_start,proj_start+4)%4
             subregion1=[subregion[i] for i in proj_index]
             eta=cross_ratio(subregion1,2*L)
-            inputs=[(subregion1[0],subregion1[2],subregion1[1][::2],L,disorder,delta) for _ in range(es)]
+            inputs=[(subregion1[0],subregion1[2],subregion1[1][::2],L,disorder,delta,type) for _ in range(es)]
             pool=executor.map(run,inputs)
             LN_ensemble_list=[]
             for _,result in enumerate(pool):
@@ -77,7 +80,7 @@ if __name__=="__main__":
         eta_Born_map=np.array(eta_Born_map)
         LN_Born_map=np.array(LN_Born_map)
 
-        with open('SSH_disorder_delta0_L{:d}_var{:.1f}_es{:d}_ds{:d}_ps{:d}.pickle'.format(L,var,es,ds,ps),'wb') as f:
+        with open('SSH_disorder_delta0_L{:d}_var{:.1f}_es{:d}_ds{:d}_ps{:d}{:s}.pickle'.format(L,var,es,ds,ps,type),'wb') as f:
             pickle.dump([eta_Born_map,LN_Born_map,disorder_map,delta],f)
 
         print('{:f}'.format(time.time()-st))
