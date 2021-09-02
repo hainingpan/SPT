@@ -9,8 +9,8 @@ from copy import copy
 import time
 
 def run(p):
-    subregionA,subregionB,subregionAp,L,disorder=p
-    params=Params(delta=0,L=L,bc=-1,disorder=disorder)
+    subregionA,subregionB,subregionAp,L,disorder,delta=p
+    params=Params(delta=delta,L=L,bc=-1,disorder=disorder)
     params.measure_all_Born(subregionAp,type='link')
     return params.log_neg(subregionA,subregionB)
 
@@ -39,6 +39,14 @@ if __name__=="__main__":
         disorder=(np.random.normal(loc=0,scale=var,size=L*2))
         disorder=disorder-disorder.mean()
         disorder_map.append(disorder)
+        gap_list=[]
+        delta_list=np.linspace(-1,1,101)
+        for delta in delta_list:
+            params=Params(delta=delta,L=L,bc=-1,disorder=disorder)
+            params.bandstructure()
+            gap_list.append(params.val[L]-params.val[L-1])
+
+        delta=delta_list[np.argmin(gap_list)]
 
         eta_Born_list=[]
         LN_Born_list=[]
@@ -55,7 +63,7 @@ if __name__=="__main__":
             proj_index=np.arange(proj_start,proj_start+4)%4
             subregion1=[subregion[i] for i in proj_index]
             eta=cross_ratio(subregion1,2*L)
-            inputs=[(subregion1[0],subregion1[2],subregion1[1][::2],L,disorder) for _ in range(es)]
+            inputs=[(subregion1[0],subregion1[2],subregion1[1][::2],L,disorder,delta) for _ in range(es)]
             pool=executor.map(run,inputs)
             LN_ensemble_list=[]
             for _,result in enumerate(pool):
