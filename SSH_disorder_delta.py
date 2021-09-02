@@ -49,9 +49,9 @@ if __name__=="__main__":
             subregion.append(np.hstack([np.arange(x[3],2*L),np.arange(0,x[0])]))
             proj_start=np.random.choice(np.arange(4),1).item()
             proj_index=np.arange(proj_start,proj_start+4)%4
-
-            eta=cross_ratio([x[index] for index in proj_index],2*L)
-            inputs=[(subregion[proj_index[0]],subregion[proj_index[2]],subregion[proj_index[1]][::2],L,disorder) for _ in range(es)]
+            subregion1=[subregion[i] for i in proj_index]
+            eta=cross_ratio(subregion1,2*L)
+            inputs=[(subregion1[0],subregion1[2],subregion1[1][::2],L,disorder) for _ in range(es)]
             pool=executor.map(run,inputs)
             LN_ensemble_list=[]
             for _,result in enumerate(pool):

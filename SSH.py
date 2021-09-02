@@ -456,9 +456,15 @@ class Params:
 
 
 def cross_ratio(x,L):
+    # if L<np.inf:
+    #     xx=lambda i,j: (np.sin(np.pi/(L)*np.abs(x[i]-x[j])))
+    # else:
+    #     xx=lambda i,j: np.abs(x[i]-x[j])
+    # eta=(xx(0,1)*xx(2,3))/(xx(0,2)*xx(1,3))
     if L<np.inf:
-        xx=lambda i,j: (np.sin(np.pi/(L)*np.abs(x[i]-x[j])))
-    else:
-        xx=lambda i,j: np.abs(x[i]-x[j])
-    eta=(xx(0,1)*xx(2,3))/(xx(0,2)*xx(1,3))
+        xx01=np.sin(np.pi/L*x[0].shape[0])
+        xx23=np.sin(np.pi/L*x[2].shape[0])
+        xx02=np.sin(np.pi/L*(x[0].shape[0]+x[1].shape[0]))
+        xx13=np.sin(np.pi/L*(x[1].shape[0]+x[2].shape[0]))
+        eta=(xx01*xx23)/(xx02*xx13)
     return eta
