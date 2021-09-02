@@ -78,6 +78,6 @@ if __name__=="__main__":
         LN_Born_map=np.array(LN_Born_map)
 
         with open('SSH_disorder_delta0_L{:d}_var{:.1f}_es{:d}_ds{:d}_ps{:d}.pickle'.format(L,var,es,ds,ps),'wb') as f:
-            pickle.dump([eta_Born_map,LN_Born_map,disorder_map],f)
+            pickle.dump([eta_Born_map,LN_Born_map,disorder_map,delta],f)
 
         print('{:f}'.format(time.time()-st))
