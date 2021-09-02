@@ -6,6 +6,7 @@ import pickle
 import numpy as np
 from mpi4py.futures import MPIPoolExecutor
 from copy import copy 
+import time
 
 def run(p):
     subregionA,subregionB,subregionAp,L,disorder=p
@@ -13,7 +14,8 @@ def run(p):
     params.measure_all_Born(subregionAp,type='link')
     return params.log_neg(subregionA,subregionB)
 
-if __name__=="__main__":   
+if __name__=="__main__":  
+    st=time.time()
     parser=argparse.ArgumentParser()
     parser.add_argument('--es',default=10,type=int)
     parser.add_argument('--L',default=64,type=int)
@@ -42,11 +44,13 @@ if __name__=="__main__":
         LN_Born_list=[]
         for _ in range(ps):
             x=sorted(2*np.random.choice(np.arange(0,L),4,replace=False))
+            # x[0]=0
             subregion=[]
             subregion.append(np.arange(x[0],x[1]))
-            subregion.append(np.arange(x[2],x[3]))
             subregion.append(np.arange(x[1],x[2]))
+            subregion.append(np.arange(x[2],x[3]))
             subregion.append(np.hstack([np.arange(x[3],2*L),np.arange(0,x[0])]))
+            # proj_start=0
             proj_start=np.random.choice(np.arange(4),1).item()
             proj_index=np.arange(proj_start,proj_start+4)%4
             subregion1=[subregion[i] for i in proj_index]
@@ -67,3 +71,5 @@ if __name__=="__main__":
 
         with open('SSH_disorder_delta0_L{:d}_var{:.1f}_es{:d}_ds{:d}_ps{:d}.pickle'.format(L,var,es,ds,ps),'wb') as f:
             pickle.dump([eta_Born_map,LN_Born_map,disorder_map],f)
+
+        print('{:f}'.format(time.time()-st))
