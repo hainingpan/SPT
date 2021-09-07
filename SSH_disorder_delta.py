@@ -54,7 +54,7 @@ if __name__=="__main__":
             raise ValueError('disorder type ({:s}) not recognized'.format(disorder_type))
 
         disorder_map.append(disorder)
-        disorder_J_map.append(disorder)
+        disorder_J_map.append(disorder_J)
 
         gap_list=[]
         delta_list=np.linspace(-1,1,101)
