@@ -32,6 +32,7 @@ if __name__=="__main__":
         
     bandstructure_list=[]
     disorder_map=[]
+    disorder_J_map=[]
     LN0_Born_map=[]
     LN1_Born_map=[]
     eta_Born_map=[]
@@ -53,6 +54,7 @@ if __name__=="__main__":
             raise ValueError('disorder type ({:s}) not recognized'.format(disorder_type))
 
         disorder_map.append(disorder)
+        disorder_J_map.append(disorder)
 
         gap_list=[]
         delta_list=np.linspace(-1,1,101)
@@ -100,6 +102,6 @@ if __name__=="__main__":
     LN1_Born_map=np.array(LN1_Born_map)
 
     with open('SSH_disorder_delta0_L{:d}_var{:.1f}_es{:d}_ds{:d}_ps{:d}{:s}.pickle'.format(L,var,es,ds,ps,'_'+disorder_type),'wb') as f:
-        pickle.dump([eta_Born_map,LN0_Born_map,LN1_Born_map,disorder_map,delta],f)
+        pickle.dump([eta_Born_map,LN0_Born_map,LN1_Born_map,disorder_map,disorder_J_map,delta],f)
 
     print('{:f}'.format(time.time()-st))
