@@ -16,6 +16,7 @@ class Params:
     E0=None,
     kappa=0.5,
     disorder=0,
+    disorder_J=0,
     history=True):
         self.L=L
         self.delta=delta
@@ -30,6 +31,7 @@ class Params:
             self.bc=bc
             band=np.vstack([np.ones(L)*self.v,np.ones(L)*self.w]).flatten('F')
             band=band+disorder
+            band=band*disorder_J
             Ham=np.diag(band[:-1],1)
             Ham[0,-1]=band[-1]*bc
             self.Hamiltonian=-(Ham+Ham.T)
@@ -468,3 +470,9 @@ def cross_ratio(x,L):
         xx13=np.sin(np.pi/L*(x[1].shape[0]+x[2].shape[0]))
         eta=(xx01*xx23)/(xx02*xx13)
     return eta
+
+def randomize_J(L,delta):
+    if delta==0:
+        return np.ones(L)
+    else:
+        return np.random.uniform(size=L)**delta
