@@ -380,7 +380,7 @@ class Params:
     
    
 
-    def measure_all_Born(self,proj_range=None,order=None):
+    def measure_all_Born(self,proj_range=None,order=None,prob=None):
         # proj_range should be in the format of fermionic sites
         if proj_range is None:
             proj_range=np.arange(self.L//4,self.L//2)
@@ -391,12 +391,19 @@ class Params:
         if order=='e4':
             proj_range=np.concatenate((proj_range[::4],proj_range[1::4],proj_range[2::4]+proj_range[3::4]))
         proj_range=self.linearize_index(proj_range,2,proj=True,k=2)
-        self.P_0_list=[]
+        # self.P_0_list=[]
         if not hasattr(self, 'C_m'):
             self.covariance_matrix_f()
-        for i in proj_range:
-            P_0=(self.C_m_history[-1][i,i+1]+1)/2
-            self.P_0_list.append(P_0)
+        for index,i in enumerate(proj_range):
+            if prob is None:
+                P_0=(self.C_m_history[-1][i,i+1]+1)/2
+                # self.P_0_list.append(P_0)
+            else:
+                if isinstance(prob,list):
+                    assert len(prob)==len(proj_range), "len of prob {:d} not equal to len of proj_range {:d}".format(len(prob),len(proj_range))
+                    P_0=prob[index]
+                else:
+                    P_0=prob
             if np.random.rand() < P_0:                
                 self.measure(0,[i,i+1])
             else:
