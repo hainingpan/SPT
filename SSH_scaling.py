@@ -14,9 +14,9 @@ def run(p):
     params=Params(delta=0,L=L,bc=-1)
     if type=='onsite':
         subregionAp=np.arange(x[1],x[2])
-        params.measure_all_Born(subregionAp)
+        params.measure_all_Born(subregionAp,type='onsite')
     elif type=='link':
-        subregionAp=np.arange(x[1],x[2],2)
+        subregionAp=np.arange(x[1],x[2],2,type='link')
         params.measure_all_Born(subregionAp)
     MI=params.mutual_information_m(subregionA,subregionB)
     LN=params.log_neg(subregionA,subregionB)
