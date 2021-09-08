@@ -54,5 +54,5 @@ if __name__=="__main__":
         
     executor.shutdown()
 
-    with open('Majarona_scaling_L{:d}_es{:d}_ps{:d}{:s}.pickle'.format(L,es,ps,'_'+type),'wb') as f:
+    with open('Majorana_scaling_L{:d}_es{:d}_ps{:d}{:s}.pickle'.format(L,es,ps,'_'+type),'wb') as f:
         pickle.dump([LN_list,MI_list,eta_list,L,es,ps],f)
