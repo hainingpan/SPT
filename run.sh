@@ -10,10 +10,10 @@
 # mpirun -np 4 python -m mpi4py.futures Born_CI.py --es 100 --timing True --Lx 16 --Ly 16 --num 20
 # mpirun -np 4 python -m mpi4py.futures MI_LN_CI.py --es 10 --timing True --Lx 16 --Ly 16 --pts 20
 
-mpirun -n 8 --use-hwthread-cpus python -m mpi4py.futures SSH_scaling.py --ps 1000 --es 1
-mpirun -n 8 --use-hwthread-cpus python -m mpi4py.futures SSH_scaling.py --ps 1000 --es 50 --type onsite
-mpirun -n 8 --use-hwthread-cpus python -m mpi4py.futures SSH_scaling.py --ps 1000 --es 50 --type link
+mpirun -n 64 python -m mpi4py.futures SSH_scaling.py --ps 1000 --L 128 --es 1
+mpirun -n 64 python -m mpi4py.futures SSH_scaling.py --ps 1000 --L 128 --es 100 --type onsite
+mpirun -n 64 python -m mpi4py.futures SSH_scaling.py --ps 1000 --L 128 --es 100 --type link
 
-mpirun -n 8 --use-hwthread-cpus python -m mpi4py.futures Majorana_scaling.py --ps 1000 --es 1
-mpirun -n 8 --use-hwthread-cpus python -m mpi4py.futures Majorana_scaling.py --ps 1000 --es 50 --type onsite
+mpirun -n 64 python -m mpi4py.futures Majorana_scaling.py --ps 1000 --L 128 --es 1
+mpirun -n 64 python -m mpi4py.futures Majorana_scaling.py --ps 1000 --L 128 --es 100 --type onsite
 
