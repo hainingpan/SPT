@@ -181,7 +181,7 @@ class Params:
 
     def c_subregion_f(self, subregion, linear=True):
         '''
-        subregion: [subregoin_x, subregion_y] index of unit cell
+        subregion: [subregion_x, subregion_y] index of unit cell
         '''
         if not hasattr(self, 'C_f'):
             self.correlation_matrix()
@@ -479,12 +479,18 @@ class Params:
     def fermion_number(self,proj_range,linear=False,type='C_m'):
         if type=='C_m':
             if not linear:
-                proj_range = self.linearize_index(proj_range, 4, proj=True)
+                proj_range = self.linearize_index(proj_range, 4, proj=True,k=2)
             return 1/2*(1-np.diagonal(self.C_m_history[-1],1)[proj_range]).sum()
-        if type=='C_f':
-            if not linear:
-                proj_range = self.linearize_index(proj_range, 2, proj=True,k=2)
-            return np.trace(self.C_f[proj_range])
+        # if type=='C_f':
+        #     if not linear:
+        #         proj_range = self.linearize_index(proj_range, 2, proj=True,k=1)
+        #     return np.trace(self.C_f[proj_range])
+
+    def snap_prob(self,proj_range,occ,linear=False):
+
+        if not linear:
+            proj_range= self.linearize_index(proj_range,4,proj=True,k=2)
+        return (1-(-1)**occ*np.diagonal(self.C_m,1)[proj_range])/2
 
 
 def cross_ratio(x,L):
