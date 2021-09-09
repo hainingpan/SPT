@@ -25,7 +25,7 @@ if __name__=="__main__":
     parser.add_argument('--kmax',default=2,type=int)
     parser.add_argument('--Lx',default=32,type=int)
     parser.add_argument('--Ly',default=4,type=int)
-    parser.add_argument('--m',default=1,type=int)
+    parser.add_argument('--m',default=1,type=float)
 
     args=parser.parse_args()
     executor=MPIPoolExecutor()
