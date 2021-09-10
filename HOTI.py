@@ -5,7 +5,7 @@ import numpy.matlib
 
 class Params:
     def __init__(self,
-            Lx=4,
+            Lx=16,
             Ly=16,
             Delta=1,
             t=1,
@@ -356,11 +356,11 @@ class Params:
             if type=='onsite':
                 proj_range = self.linearize_index(proj_range, 8, proj=True)
             # if type=='link':
-            #     proj_range = self.linearize_index(proj_range, 8, proj=True,k=8)
+            #     proj_range = self.linearize_index(proj_range, 8, proj=True,k=4)
         # self.proj_range=proj_range
         # print(proj_range)
         self.P_0_list = []
-        self.f_parity= []
+        # self.f_parity= []
         if not hasattr(self, 'C_m'):
             self.covariance_matrix()
         if type=='onsite':
@@ -376,10 +376,10 @@ class Params:
                 self.P_0_list.append(P_0)
                 if np.random.rand() < P_0:
                     self.measure(0, [i, i+1])
-                    self.f_parity.append(0)
+                    # self.f_parity.append(0)
                 else:
                     self.measure(1, [i, i+1])
-                    self.f_parity.append(1)
+                    # self.f_parity.append(1)
             return self
 
         # if type=='link':

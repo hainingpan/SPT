@@ -362,7 +362,25 @@ class Params:
             proj=np.zeros((8,8))
             proj[:4,:4]=blkmat
             proj[4:,4:]=blkmat.T
-            return proj            
+            return proj   
+        if type=='correlated':
+            assert (s in ['10','01']), "s={} for {} is not defined".format(s,type)
+            if s=='10':
+                blkmat=np.array([[0,-1,0,0],
+                                 [1,0,0,0],
+                                 [0,0,0,1],
+                                 [0,0,-1,0]])
+            if s=='01':
+                blkmat=np.array([[0,1,0,0],
+                                 [-1,0,0,0],
+                                 [0,0,0,-1],
+                                 [0,0,1,0]])
+            proj=np.zeros((8,8))
+            proj[:4,:4]=blkmat
+            proj[4:,4:]=blkmat.T
+            return proj
+
+
         raise ValueError("type '{}' is not defined".format(type))
 
     def measure(self, s, ix,type='onsite',ignore=False):
@@ -421,7 +439,7 @@ class Params:
         if not linear:
             if type=='onsite':
                 proj_range = self.linearize_index(proj_range, 4, proj=True)
-            if type=='link':
+            if type=='link' or type=='correlated':
                 proj_range = self.linearize_index(proj_range, 4, proj=True,k=4)
         # self.proj_range=proj_range
         # print(proj_range)
@@ -475,6 +493,21 @@ class Params:
                     s=np.random.choice(['e+','e-'],p=[P['e+']/(P['e+']+P['e-']),P['e-']/(P['e+']+P['e-'])])
                 self.measure(s,[i,i+1,i+2,i+3],type='link',ignore=ignore)
             return self
+        if type=='correlated':
+            for i in proj_range:
+                Gamma=self.C_m_history[-1][i:i+4,i:i+4]
+                P={}
+                if prob is None:
+                    gamma1234=-Gamma[0,1]*Gamma[2,3]+Gamma[0,2]*Gamma[1,3]-Gamma[0,3]*Gamma[1,2]
+                    P['10']=(1+Gamma[0,1]-Gamma[2,3]+gamma1234)/4
+                    P['01']=(1-Gamma[0,1]+Gamma[2,3]+gamma1234)/4
+                else:
+                    P['10'],P['01']=tuple(prob)
+                s=np.random.choice(['10','01'],p=[P['10']/(P['10']+P['01']),P['01']/(P['10']+P['01'])])
+                self.measure(s,[i,i+1,i+2,i+3],type=type)
+            return self
+
+
 
     def fermion_number(self,proj_range,linear=False,type='C_m'):
         if type=='C_m':
