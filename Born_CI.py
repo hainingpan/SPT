@@ -52,7 +52,7 @@ if __name__=="__main__":
             MI_Born_list[m_i,es_i]=MI
             LN_Born_list[m_i,es_i]=LN
             fn_Born_list[m_i,es_i]=fn
-        print('m={:.2f} {:.1f}'.format(m,time.time()-st0))
+        print('m={:.2f} {:.1f}'.format(m,time.time()-st0),flush=True)
     executor.shutdown()
 
     with open('CI_Born_En{:d}_Lx{:d}_Ly{:d}_{:s}.pickle'.format(args.es,args.Lx,args.Ly,args.type),'wb') as f:
