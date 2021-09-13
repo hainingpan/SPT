@@ -265,9 +265,10 @@ class Params:
         s_AB = self.von_Neumann_entropy_f(subregion_AB)
         return s_A+s_B-s_AB
 
-    def mutual_information_m(self, subregion_A, subregion_B):
-        subregion_A = self.linearize_index(subregion_A, 4)
-        subregion_B = self.linearize_index(subregion_B, 4)
+    def mutual_information_m(self, subregion_A, subregion_B,linear=False):
+        if not linear:
+            subregion_A = self.linearize_index(subregion_A, 4)
+            subregion_B = self.linearize_index(subregion_B, 4)
         assert np.intersect1d(
             subregion_A, subregion_B).size == 0, "Subregion A and B overlap"
         s_A = self.von_Neumann_entropy_m(subregion_A)
@@ -280,8 +281,7 @@ class Params:
         if not linear:
             subregion_A = self.linearize_index(subregion_A, 4)
             subregion_B = self.linearize_index(subregion_B, 4)
-        assert np.intersect1d(
-            subregion_A, subregion_B).size == 0, "Subregion A and B overlap"
+        assert np.intersect1d(subregion_A, subregion_B).size == 0, "Subregion A and B overlap"
         if not hasattr(self, 'C_m'):
             self.covariance_matrix()
 

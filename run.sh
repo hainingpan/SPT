@@ -10,10 +10,21 @@
 # mpirun -np 4 python -m mpi4py.futures Born_CI.py --es 100 --timing True --Lx 16 --Ly 16 --num 20
 # mpirun -np 4 python -m mpi4py.futures MI_LN_CI.py --es 10 --timing True --Lx 16 --Ly 16 --pts 20
 
-mpirun -n 64 python -m mpi4py.futures SSH_scaling.py --ps 1000 --L 128 --es 1
-mpirun -n 64 python -m mpi4py.futures SSH_scaling.py --ps 1000 --L 128 --es 100 --type onsite
-mpirun -n 64 python -m mpi4py.futures SSH_scaling.py --ps 1000 --L 128 --es 100 --type link
+# mpirun -n 64 python -m mpi4py.futures SSH_scaling.py --ps 1000 --L 128 --es 1
+# mpirun -n 64 python -m mpi4py.futures SSH_scaling.py --ps 1000 --L 128 --es 100 --type onsite
+# mpirun -n 4 python -m mpi4py.futures SSH_scaling.py --ps 1000 --L 64 --es 50 --type link
 
-mpirun -n 64 python -m mpi4py.futures Majorana_scaling.py --ps 1000 --L 128 --es 1
-mpirun -n 64 python -m mpi4py.futures Majorana_scaling.py --ps 1000 --L 128 --es 100 --type onsite
+# mpirun -n 64 python -m mpi4py.futures Majorana_scaling.py --ps 1000 --L 128 --es 1
+# mpirun -n 64 python -m mpi4py.futures Majorana_scaling.py --ps 1000 --L 128 --es 100 --type onsite
 
+mpirun -n 4 python -m mpi4py.futures Born_CI_geo.py --es 1 --num 11 --Lx 16 --Ly 16 --Born -1 --geo 1
+mpirun -n 4 python -m mpi4py.futures Born_CI_geo.py --es 1 --num 11 --Lx 16 --Ly 16 --Born 0 --geo 1
+mpirun -n 4 python -m mpi4py.futures Born_CI_geo.py --es 20 --num 11 --Lx 16 --Ly 16 --Born 1 --geo 1
+
+(16,16),(24,24),(32,32)
+
+mpirun -n 4 python -m mpi4py.futures Born_CI_geo.py --es 1 --num 11 --Lx 32 --Ly 16 --Born -1 --geo 2
+mpirun -n 4 python -m mpi4py.futures Born_CI_geo.py --es 1 --num 11 --Lx 32 --Ly 16 --Born 0 --geo 2
+mpirun -n 4 python -m mpi4py.futures Born_CI_geo.py --es 20 --num 11 --Lx 32 --Ly 16 --Born 1 --geo 2
+
+(32,16),(32,24),(32,32)
