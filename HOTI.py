@@ -5,7 +5,7 @@ import numpy.matlib
 
 class Params:
     def __init__(self,
-            Lx=16,
+            Lx=4,
             Ly=16,
             Delta=1,
             t=1,
@@ -42,7 +42,7 @@ class Params:
             self.hopxmat=hopxmat
             self.hopymat=hopymat
             onsitemat = np.eye(Lx*Ly)
-
+            # kron(spin,tau)
             self.Hamiltonian= (np.kron(hopxmat+hopxmat.T+hopymat+hopymat.T,np.kron(self.sigma0,self.sigmaz)))*t+(np.kron(hopxmat-hopxmat.T,np.kron(self.sigmax,self.sigmax))-np.kron(hopymat-hopymat.T,np.kron(self.sigmay,self.sigmax)))*1j*l+(np.kron(hopxmat+hopxmat.T,np.kron(self.sigma0,self.sigmay))-np.kron(hopymat+hopymat.T,np.kron(self.sigma0,self.sigmay)))*Delta+np.kron(onsitemat,np.kron(self.sigma0,self.sigmaz))*m
     def bandstructure(self):
         val, vec = nla.eigh(self.Hamiltonian)
@@ -111,6 +111,13 @@ class Params:
             return sorted(np.concatenate([n*linear_index+i for i in range(0, n, k)]))
         else:
             return sorted(np.concatenate([n*linear_index+i for i in range(n)]))
+
+    def square_index(self, subregion):
+        subregion=np.unique(np.array(subregion)//8)
+        if self.Lx<np.inf and self.Ly<np.inf:
+            return subregion%self.Lx,subregion//self.Lx
+        else:
+            return subregion%self.dxmax,subregion//self.dxmax
 
     def c_subregion_f(self, subregion, linear=True):
         '''
@@ -209,6 +216,17 @@ class Params:
         s_AB = self.von_Neumann_entropy_m(subregion_AB)
         return s_A+s_B-s_AB
 
+    def entropy_E(self, subregion_A, subregion_B):
+        subregion_A = self.linearize_index(subregion_A, 8)
+        subregion_B = self.linearize_index(subregion_B, 8)
+        assert np.intersect1d(
+            subregion_A, subregion_B).size == 0, "Subregion A and B overlap"
+        s_A = self.von_Neumann_entropy_m(subregion_A)
+        s_B = self.von_Neumann_entropy_m(subregion_B)
+        subregion_AB = np.concatenate([subregion_A, subregion_B])
+        s_AB = self.von_Neumann_entropy_m(subregion_AB)
+        return s_A+s_B-s_AB
+
     def log_neg(self, subregion_A, subregion_B, Gamma=None,linear=False):
         if not linear:
             subregion_A = self.linearize_index(subregion_A, 8)
@@ -262,8 +280,26 @@ class Params:
                             [0, 0, 0, (-1)**s],
                             [0, 0, -(-1)**s, 0]])
             return blkmat
+
+        # if type=='correlated':
+        #     assert (s in ['10','01']), "s={} for {} is not defined".format(s,type)
+        #     if s=='10':
+        #         blkmat=np.array([[0,-1,0,0],
+        #                          [1,0,0,0],
+        #                          [0,0,0,1],
+        #                          [0,0,-1,0]])
+        #     if s=='01':
+        #         blkmat=np.array([[0,1,0,0],
+        #                          [-1,0,0,0],
+        #                          [0,0,0,-1],
+        #                          [0,0,1,0]])
+        #     proj=np.zeros((8,8))
+        #     proj[:4,:4]=blkmat
+        #     proj[4:,4:]=blkmat.T
+        #     return proj
+
         if type=='link':
-            raise ValueError('UnderConstruction')
+            # raise ValueError('UnderConstruction')
             assert (s in ['o+','o-','e+','e-']), "s={} for {} is not defined".format(s,type)
             if s=='o+':
                 antidiag=[1,-1,1,-1]
@@ -273,26 +309,14 @@ class Params:
                 antidiag=[-1,1,-1,1]
                 blkmat=np.diag(antidiag)
                 blkmat=np.fliplr(blkmat)
-            if not ignore:
-                if s=='e+':
-                    blkmat=np.array([[0,-1,0,0],
-                                    [1,0,0,0],
-                                    [0,0,0,-1],
-                                    [0,0,1,0]])
-                if s=='e-':
-                    blkmat=-np.array([[0,-1,0,0],
-                                    [1,0,0,0],
-                                    [0,0,0,-1],
-                                    [0,0,1,0]])
-            else:
-                if s=='e+':
-                    antidiag=[-1,-1,1,1]
-                    blkmat=np.diag(antidiag)
-                    blkmat=np.fliplr(blkmat)
-                if s=='e-':
-                    antidiag=[1,1,-1,-1]
-                    blkmat=np.diag(antidiag)
-                    blkmat=np.fliplr(blkmat)
+            if s=='e+':
+                antidiag=[-1,-1,1,1]
+                blkmat=np.diag(antidiag)
+                blkmat=np.fliplr(blkmat)
+            if s=='e-':
+                antidiag=[1,1,-1,-1]
+                blkmat=np.diag(antidiag)
+                blkmat=np.fliplr(blkmat)
             proj=np.zeros((8,8))
             proj[:4,:4]=blkmat
             proj[4:,4:]=blkmat.T
@@ -355,12 +379,15 @@ class Params:
         if not linear:
             if type=='onsite':
                 proj_range = self.linearize_index(proj_range, 8, proj=True)
+            if type=='link':
+                proj_range = self.linearize_index(proj_range, 8, proj=True,k=4)
+                
             # if type=='link':
-            #     proj_range = self.linearize_index(proj_range, 8, proj=True,k=4)
+            #     proj_range = self.linearize_index(proj_range, 8, proj=True,k=8)
         # self.proj_range=proj_range
         # print(proj_range)
         self.P_0_list = []
-        # self.f_parity= []
+        self.f_parity= []
         if not hasattr(self, 'C_m'):
             self.covariance_matrix()
         if type=='onsite':
@@ -376,10 +403,10 @@ class Params:
                 self.P_0_list.append(P_0)
                 if np.random.rand() < P_0:
                     self.measure(0, [i, i+1])
-                    # self.f_parity.append(0)
+                    self.f_parity.append(0)
                 else:
                     self.measure(1, [i, i+1])
-                    # self.f_parity.append(1)
+                    self.f_parity.append(1)
             return self
 
         # if type=='link':
@@ -388,27 +415,34 @@ class Params:
         #         P={}
         #         if prob is None:
         #             gamma1234=-Gamma[0,1]*Gamma[2,3]+Gamma[0,2]*Gamma[1,3]-Gamma[0,3]*Gamma[1,2]
-        #             P['o+']=(1+Gamma[1,2]-Gamma[0,3]+gamma1234)/4
-        #             P['o-']=(1-Gamma[1,2]+Gamma[0,3]+gamma1234)/4
-        #             if not ignore:
-        #                 P['e+']=(1+Gamma[0,1]+Gamma[2,3]-gamma1234)/4
-        #                 P['e-']=(1-Gamma[0,1]-Gamma[2,3]-gamma1234)/4
-        #             else:
-        #                 #ignore symmetry
-        #                 P['e+']=(1+Gamma[1,2]+Gamma[0,3]-gamma1234)/4
-        #                 P['e-']=(1-Gamma[1,2]-Gamma[0,3]-gamma1234)/4
+        #             P['10']=(1+Gamma[0,1]-Gamma[2,3]+gamma1234)/4
+        #             P['01']=(1-Gamma[0,1]+Gamma[2,3]+gamma1234)/4
         #         else:
-        #             P['o+'],P['o-'],P['e+'],P['e-']=tuple(prob)
-
-        #         # print((P.values()))
-        #         if pool==4:
-        #             s=np.random.choice(['o+','o-','e+','e-'],p=[P['o+'],P['o-'],P['e+'],P['e-']])
-        #         elif pool==2:
-        #             s=np.random.choice(['o+','o-'],p=[P['o+']/(P['o+']+P['o-']),P['o-']/(P['o+']+P['o-'])])
-        #         elif pool==-2:
-        #             s=np.random.choice(['e+','e-'],p=[P['e+']/(P['e+']+P['e-']),P['e-']/(P['e+']+P['e-'])])
-        #         self.measure(s,[i,i+1,i+2,i+3],type='link',ignore=ignore)
+        #             P['10'],P['01']=tuple(prob)
+        #         s=np.random.choice(['10','01'],p=[P['10']/(P['10']+P['01']),P['01']/(P['10']+P['01'])])
+        #         self.measure(s,[i,i+1,i+2,i+3],type=type)
         #     return self
+        if type=='link':
+            for i in proj_range:
+                Gamma=self.C_m_history[-1][i:i+4,i:i+4]
+                P={}
+                if prob is None:
+                    gamma1234=-Gamma[0,1]*Gamma[2,3]+Gamma[0,2]*Gamma[1,3]-Gamma[0,3]*Gamma[1,2]
+                    P['o+']=(1+Gamma[1,2]-Gamma[0,3]+gamma1234)/4
+                    P['o-']=(1-Gamma[1,2]+Gamma[0,3]+gamma1234)/4
+                    P['e+']=(1+Gamma[1,2]+Gamma[0,3]-gamma1234)/4
+                    P['e-']=(1-Gamma[1,2]-Gamma[0,3]-gamma1234)/4
+                else:
+                    P['o+'],P['o-'],P['e+'],P['e-']=tuple(prob)
+
+                if pool==4:
+                    s=np.random.choice(['o+','o-','e+','e-'],p=[P['o+'],P['o-'],P['e+'],P['e-']])
+                elif pool==2:
+                    s=np.random.choice(['o+','o-'],p=[P['o+']/(P['o+']+P['o-']),P['o-']/(P['o+']+P['o-'])])
+                elif pool==-2:
+                    s=np.random.choice(['e+','e-'],p=[P['e+']/(P['e+']+P['e-']),P['e-']/(P['e+']+P['e-'])])
+                self.measure(s,[i,i+1,i+2,i+3],type='link',ignore=ignore)
+            return self
     def fermion_number(self,proj_range,linear=False,type='C_m'):
         if type=='C_m':
             if not linear:
