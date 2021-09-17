@@ -23,6 +23,7 @@ def run(p):
     return MI,LN
 
 if __name__=="__main__":   
+    st=time.time()
     parser=argparse.ArgumentParser()
     parser.add_argument('--es',default=10,type=int)
     parser.add_argument('--L',default=64,type=int)
@@ -59,3 +60,5 @@ if __name__=="__main__":
 
     with open('SSH_scaling_L{:d}_es{:d}_ps{:d}{:s}.pickle'.format(L,es,ps,'_'+type),'wb') as f:
         pickle.dump([LN_list,MI_list,eta_list,L,es,ps],f)
+        
+    print(st-time.time())
