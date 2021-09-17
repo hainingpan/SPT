@@ -458,7 +458,7 @@ class Params:
 
 
 def cross_ratio(x,L):
-    if isinstance(x[0],list):
+    if isinstance(x[0],list) or isinstance(x[0],np.ndarray):
         xx01=np.sin(np.pi/L*x[0].shape[0])
         xx23=np.sin(np.pi/L*x[2].shape[0])
         xx02=np.sin(np.pi/L*(x[0].shape[0]+x[1].shape[0]))
