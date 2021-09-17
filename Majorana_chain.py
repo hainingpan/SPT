@@ -444,9 +444,12 @@ class Params:
      
     
 def cross_ratio(x,L):
+    if L<np.inf:
         xx=lambda i,j: (np.sin(np.pi/(L)*np.abs(x[i]-x[j])))
-        eta=(xx(0,1)*xx(2,3))/(xx(0,2)*xx(1,3))
-        return eta
+    else:
+        xx=lambda i,j: np.abs(x[i]-x[j])
+    eta=(xx(0,1)*xx(2,3))/(xx(0,2)*xx(1,3))
+    return eta
 
 from scipy.interpolate import UnivariateSpline
 def find_inflection(x,y):
