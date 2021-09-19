@@ -22,6 +22,7 @@ if __name__=="__main__":
     parser.add_argument('--es',default=10,type=int)
     parser.add_argument('--L',default=64,type=int)
     parser.add_argument('--ds',default=10,type=int)
+    parser.add_argument('--ps',default=100,type=int)
     parser.add_argument('--var',default=0,type=float)
     parser.add_argument('--disorder_type',default='disorder_J',type=str)
   
@@ -32,6 +33,7 @@ if __name__=="__main__":
     disorder_J_map=[]
     es=args.es
     ds=args.ds
+    ps=args.ps
     L=args.L
     disorder_type=args.disorder_type
     var=args.var
@@ -52,8 +54,11 @@ if __name__=="__main__":
 
     inputs=[]
     eta_list=[]
-    for size_A_i,size_A in enumerate(range(2,L,2)):
-        x=[0,size_A,L,L+size_A]
+    # for size_A_i,size_A in enumerate(range(2,L,2)):
+    for size_A_i in range(ps):
+        # x=[0,size_A,L,L+size_A]
+        x=np.sort(2*np.random.choice(np.arange(2,L),4,replace=False))
+        x[0]=0
         subregion=[]
         subregion.append(np.arange(x[0],x[1]))
         subregion.append(np.arange(x[1],x[2]))
@@ -68,8 +73,10 @@ if __name__=="__main__":
 
     eta_list=np.array(eta_list)
     pool=executor.map(run,inputs)
-    LN0_list=np.zeros((L//2-1,len(disorder_map),es))
-    LN1_list=np.zeros((L//2-1,len(disorder_map),es))
+    # LN0_list=np.zeros((L//2-1,len(disorder_map),es))
+    # LN1_list=np.zeros((L//2-1,len(disorder_map),es))
+    LN0_list=np.zeros((ps,len(disorder_map),es))
+    LN1_list=np.zeros((ps,len(disorder_map),es))
     for _,result in enumerate(pool):
         LN0,LN1,size_A_i,dis_i,es_i=result
         LN0_list[size_A_i,dis_i,es_i]=(LN0)
@@ -77,7 +84,7 @@ if __name__=="__main__":
 
     executor.shutdown()
 
-    with open('SSH_disorder_delta0_L{:d}_var{:.1f}_es{:d}_ds{:d}_{:s}.pickle'.format(L,var,es,ds,'_'+disorder_type),'wb') as f:
+    with open('SSH_disorder_delta0_L{:d}_var{:.1f}_es{:d}_ds{:d}_ps{:d}_{:s}.pickle'.format(L,var,es,ds,ps,disorder_type),'wb') as f:
         pickle.dump([eta_list,LN0_list,LN1_list,disorder_map,disorder_J_map,delta],f)
 
     print('{:f}'.format(time.time()-st))
