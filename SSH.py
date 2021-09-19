@@ -409,10 +409,10 @@ class Params:
                 # P['e-']=(1-Gamma[1,2])/2*(1-Gamma[0,3])/2
                 # print((P.values()))
 
-                assert P['o+']>-1e-12,'P[o+]={:e}'.format(P['o+'])     
-                assert P['o-']>-1e-12,'P[o-]={:e}'.format(P['o-'])     
-                assert P['e+']>-1e-12,'P[e+]={:e}'.format(P['e+'])     
-                assert P['e-']>-1e-12,'P[e-]={:e}'.format(P['e-'])  
+                assert P['o+']>-1e-9,'P[o+]={:e}'.format(P['o+'])     
+                assert P['o-']>-1e-9,'P[o-]={:e}'.format(P['o-'])     
+                assert P['e+']>-1e-9,'P[e+]={:e}'.format(P['e+'])     
+                assert P['e-']>-1e-9,'P[e-]={:e}'.format(P['e-'])  
                 P['o+']=max([0,P['o+']])
                 P['o-']=max([0,P['o-']])
                 P['e+']=max([0,P['e+']])
